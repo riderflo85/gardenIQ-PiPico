@@ -159,6 +159,20 @@ class Frame:
         calculated_checksum = self.build_checksum(self.source_frame_from_master.encode())
         return calculated_checksum == expected_checksum
 
+    def is_ping_order(self) -> bool:
+        return (
+            self.from_master
+            and self.frame_type == FrameType.PING
+            and self.command_id == 0
+        )
+
+    def is_command_order(self) -> bool:
+        return (
+            self.from_master
+            and self.frame_type == FrameType.CMD
+            and self.command_id > 0
+        )
+
     # def is_ping_response(self) -> bool:
     #     if self.source_frame_from_device and pattern_recv_frame_version.match(self.source_frame_from_device):
     #         found_versions = True

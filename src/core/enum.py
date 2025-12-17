@@ -4,7 +4,9 @@ class PseudoEnumMeta(type):
 
     This metaclass enables iteration over class attributes that are considered enum members.
     During iteration, it collects all class attributes that:
+        - It's not a _members array,
         - Do not start with double underscores,
+        - Do not start with single underscores,
         - Are not classmethods,
         - Are not callable.
 
