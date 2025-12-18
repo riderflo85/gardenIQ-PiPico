@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   test:
@@ -38,11 +38,16 @@ jobs:
       # 7. Run tests with coverage
       - name: Run tests with pytest and coverage
         run: |
-          pytest --cov=. --cov-report=html --cov-report=term-missing
+          if [ -d tests ]; then
+            pytest --cov=. --cov-report=html --cov-report=term-missing
+          else
+            echo "The tests/ directory does not exist, no tests were run."
+          fi
 
-      # 8. Save coverage report like artefact
+      # 8. Save coverage report as an artefact
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-html
           path: htmlcov/
+          if-no-files-found: ignore
