@@ -40,7 +40,7 @@ class Frame:
         "gd_fw_version",
         "mp_fw_version",
         "checksum",
-        "source_frame_from_master"
+        "source_frame_from_master",
     )
 
     def __init__(
@@ -143,11 +143,7 @@ class Frame:
             bool: True if the calculated checksum matches the expected checksum,
                   False otherwise.
         """
-        if (
-            not self.from_master
-            or not self.source_frame_from_master
-            or not self.checksum
-        ):
+        if not self.from_master or not self.source_frame_from_master or not self.checksum:
             return False
 
         # explain int(checksum_part, 16):
@@ -160,15 +156,7 @@ class Frame:
         return calculated_checksum == expected_checksum
 
     def is_ping_order(self) -> bool:
-        return (
-            self.from_master
-            and self.frame_type == FrameType.PING
-            and self.command_id == 0
-        )
+        return self.from_master and self.frame_type == FrameType.PING and self.command_id == 0
 
     def is_command_order(self) -> bool:
-        return (
-            self.from_master
-            and self.frame_type == FrameType.CMD
-            and self.command_id > 0
-        )
+        return self.from_master and self.frame_type == FrameType.CMD and self.command_id > 0

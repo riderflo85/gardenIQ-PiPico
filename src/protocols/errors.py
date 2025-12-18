@@ -3,11 +3,13 @@ from src.core.enum import PseudoEnum
 
 class FrameParsingError(Exception):
     """Raised when frame parsing fails."""
+
     pass
 
 
 class FrameProcessingError(Exception):
     """Raised when frame processing fails."""
+
     pass
 
 
@@ -23,6 +25,7 @@ class CommandError(PseudoEnum):
         INVALID_PARAM: Command parameters are malformed or invalid
         CHECKSUM_ERR: Data integrity check failed, indicating potential data corruption
     """
+
     UNKNOW_CMD = "UNKNOW_CMD"
     INVALID_PARAM = "INVALID_PARAM"
     CHECKSUM_ERR = "CHECKSUM_ERR"

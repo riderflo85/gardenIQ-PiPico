@@ -20,6 +20,7 @@ class PseudoEnumMeta(type):
         for value in MyEnum:
             print(value)  # Outputs: 1, then 2
     """
+
     def __iter__(cls):
         # Create _members to store attributes in cache.
         if not hasattr(cls, "_members"):

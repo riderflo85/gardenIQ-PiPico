@@ -56,16 +56,16 @@ class TestGetDeviceUID:
         mock_hexlify = mocker.patch("src.core.device.hexlify")
 
         # WHEN: Calling get_device_uid with a first UID
-        mock_unique_id.return_value = b'\x01\x02\x03\x04\x05\x06\x07\x08'
-        mock_hexlify.return_value = b'0102030405060708'
+        mock_unique_id.return_value = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        mock_hexlify.return_value = b"0102030405060708"
         result1 = get_device_uid()
 
         # THEN: The result should match the first UID
         assert result1 == "0102030405060708"
 
         # WHEN: Calling get_device_uid with a different second UID
-        mock_unique_id.return_value = b'\xff\xfe\xfd\xfc\xfb\xfa\xf9\xf8'
-        mock_hexlify.return_value = b'fffefdfcfbfaf9f8'
+        mock_unique_id.return_value = b"\xff\xfe\xfd\xfc\xfb\xfa\xf9\xf8"
+        mock_hexlify.return_value = b"fffefdfcfbfaf9f8"
         result2 = get_device_uid()
 
         # THEN: The result should match the second UID and be different from the first
@@ -77,8 +77,8 @@ class TestGetDeviceUID:
         # GIVEN: Mocks configured for unique_id and hexlify
         mock_unique_id = mocker.patch("src.core.device.unique_id")
         mock_hexlify = mocker.patch("src.core.device.hexlify")
-        mock_unique_id.return_value = b'\xaa\xbb\xcc\xdd'
-        mock_hexlify.return_value = b'aabbccdd'
+        mock_unique_id.return_value = b"\xaa\xbb\xcc\xdd"
+        mock_hexlify.return_value = b"aabbccdd"
 
         # WHEN: Calling get_device_uid
         result = get_device_uid()
@@ -87,7 +87,7 @@ class TestGetDeviceUID:
         mock_unique_id.assert_called_once()
 
         # THEN: hexlify should be called once with the result of unique_id
-        mock_hexlify.assert_called_once_with(b'\xaa\xbb\xcc\xdd')
+        mock_hexlify.assert_called_once_with(b"\xaa\xbb\xcc\xdd")
 
         # THEN: The result should be the decoded hexadecimal string
         assert result == "aabbccdd"

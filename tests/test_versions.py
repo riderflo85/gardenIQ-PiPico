@@ -30,7 +30,7 @@ class TestGetMicropythonVersion:
         """
         # GIVEN
         mock_version = "3.4.0; MicroPython v1.20.5 on 2024-01-10"
-        monkeypatch.setattr(sys, 'version', mock_version)
+        monkeypatch.setattr(sys, "version", mock_version)
 
         # WHEN
         result = get_micropython_version()
@@ -46,7 +46,7 @@ class TestGetMicropythonVersion:
         """
         # GIVEN
         mock_version = "3.5.0; MicroPython v2.0.0 on 2026-01-01"
-        monkeypatch.setattr(sys, 'version', mock_version)
+        monkeypatch.setattr(sys, "version", mock_version)
 
         # WHEN
         result = get_micropython_version()
@@ -62,7 +62,7 @@ class TestGetMicropythonVersion:
         """
         # GIVEN
         mock_version = "3.4.0; MicroPython v1.19.1 on 2023-12-15"
-        monkeypatch.setattr(sys, 'version', mock_version)
+        monkeypatch.setattr(sys, "version", mock_version)
 
         # WHEN
         result = get_micropython_version()
@@ -78,11 +78,11 @@ class TestGetMicropythonVersion:
         """
         # GIVEN
         mock_version = "3.4.0; MicroPython v1.23.0 on 2025-06-01"
-        monkeypatch.setattr(sys, 'version', mock_version)
+        monkeypatch.setattr(sys, "version", mock_version)
 
         # WHEN
         result = get_micropython_version()
 
         # THEN
-        assert not result.startswith('v')
+        assert not result.startswith("v")
         assert result == "1.23.0"
