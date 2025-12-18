@@ -172,32 +172,3 @@ class Frame:
             and self.frame_type == FrameType.CMD
             and self.command_id > 0
         )
-
-    # def is_ping_response(self) -> bool:
-    #     if self.source_frame_from_device and pattern_recv_frame_version.match(self.source_frame_from_device):
-    #         found_versions = True
-    #     else:
-    #         found_versions = False
-
-    #     return (
-    #         self.from_device
-    #         and self.frame_type is FrameType.ACK
-    #         and self.command_id == 0
-    #         and found_versions
-    #     )
-
-    # def _is_order_response(self) -> bool:
-    #     return (
-    #         self.from_device
-    #         and self.frame_type is FrameType.ACK
-    #         and self.command_id > 0
-    #     )
-
-    # def is_order_response_with_data(self) -> bool:
-    #     return self._is_order_response() and self.ok_data is not None
-
-    # def is_order_response_without_data(self) -> bool:
-    #     return self._is_order_response() and self.ok_data is None
-
-    # def has_response_error(self) -> bool:
-    #     return self.from_device and self.command_state is CommandState.ERROR

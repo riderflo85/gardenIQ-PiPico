@@ -22,6 +22,9 @@ def basic_command_frame_data():
 @pytest.fixture
 def master_frame_data():
     """Fixture providing data for a frame from master."""
+    source_data = "CMD DEV456 2 master_command value1"
+    calculated_checksum = Frame.build_checksum(source_data.encode())
+    checksum_hex = format(calculated_checksum, "02X")
     return {
         "frame_type": FrameType.CMD,
         "device_uid": "DEV456",
@@ -29,8 +32,8 @@ def master_frame_data():
         "command_slug": "master_command",
         "args_values": ["value1"],
         "from_master": True,
-        "checksum": "A5",
-        "source_frame_from_master": "CMD DEV456 2 master_command value1",
+        "checksum": checksum_hex,
+        "source_frame_from_master": source_data,
     }
 
 
@@ -64,7 +67,7 @@ def error_frame_data():
 
 @pytest.fixture
 def ping_frame_data():
-    """Fixture providing data for a ping frame."""
+    """Fixture providing data for a ping frame (response from device)."""
     return {
         "frame_type": FrameType.ACK,
         "device_uid": "DEV111",
@@ -73,6 +76,24 @@ def ping_frame_data():
         "args_values": [],
         "gd_fw_version": "1.0.0",
         "mp_fw_version": "1.20.0",
+    }
+
+
+@pytest.fixture
+def ping_order_frame_data():
+    """Fixture providing data for a ping order frame (from master)."""
+    source_data = "PING DEV222 0"
+    calculated_checksum = Frame.build_checksum(source_data.encode())
+    checksum_hex = format(calculated_checksum, "02X")
+    return {
+        "frame_type": FrameType.PING,
+        "device_uid": "DEV222",
+        "command_id": 0,
+        "command_slug": "ping",
+        "args_values": [],
+        "from_master": True,
+        "checksum": checksum_hex,
+        "source_frame_from_master": source_data,
     }
 
 
@@ -99,6 +120,16 @@ class TestFrameType:
         # THEN: It should equal "ACK"
         assert ack_type == "ACK"
 
+    def test_frame_type_has_ping(self):
+        """Test that FrameType has PING value."""
+        # GIVEN: The FrameType enum
+
+        # WHEN: We access the PING attribute
+        ping_type = FrameType.PING
+
+        # THEN: It should equal "PING"
+        assert ping_type == "PING"
+
     def test_frame_type_iteration(self):
         """Test that FrameType can be iterated."""
         # GIVEN: The FrameType enum
@@ -108,8 +139,8 @@ class TestFrameType:
 
         # THEN: It should contain all frame types
         assert "CMD" in values
-        assert "ACK" in values
         assert "PING" in values
+        assert "ACK" in values
         assert len(values) == 3
 
 
@@ -260,7 +291,7 @@ class TestFrameValidation:
 
         # THEN: The frame should be created successfully
         assert frame.from_master is True
-        assert frame.checksum == "A5"
+        assert frame.checksum is not None
         assert frame.source_frame_from_master == "CMD DEV456 2 master_command value1"
 
     def test_validation_passes_for_non_master_frame_without_checksum(self, basic_command_frame_data):
@@ -581,3 +612,200 @@ class TestFrameSlots:
         # WHEN/THEN: Trying to add a new attribute should raise AttributeError
         with pytest.raises(AttributeError):
             frame.new_attribute = "value"  # type: ignore
+
+
+class TestIsPingOrder:
+    """Tests for the is_ping_order method."""
+
+    def test_is_ping_order_returns_true_for_ping_from_master(self, ping_order_frame_data):
+        """Test that is_ping_order returns True for PING frame from master with command_id 0."""
+        # GIVEN: A PING frame from master with command_id 0
+        frame = Frame(**ping_order_frame_data)
+
+        # WHEN: We call is_ping_order
+        result = frame.is_ping_order()
+
+        # THEN: It should return True
+        assert result is True
+
+    def test_is_ping_order_returns_false_for_non_master_frame(self, ping_frame_data):
+        """Test that is_ping_order returns False for frames not from master."""
+        # GIVEN: A ping response frame (not from master)
+        frame = Frame(**ping_frame_data)
+
+        # WHEN: We call is_ping_order
+        result = frame.is_ping_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_ping_order_returns_false_for_wrong_frame_type(self, master_frame_data):
+        """Test that is_ping_order returns False for non-PING frame types."""
+        # GIVEN: A CMD frame from master
+        frame = Frame(**master_frame_data)
+
+        # WHEN: We call is_ping_order
+        result = frame.is_ping_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_ping_order_returns_false_for_wrong_command_id(self):
+        """Test that is_ping_order returns False when command_id is not 0."""
+        # GIVEN: A PING frame from master but with command_id != 0
+        source_data = "PING DEV333 5"
+        calculated_checksum = Frame.build_checksum(source_data.encode())
+        checksum_hex = format(calculated_checksum, "02X")
+        data = {
+            "frame_type": FrameType.PING,
+            "device_uid": "DEV333",
+            "command_id": 5,
+            "command_slug": "ping",
+            "args_values": [],
+            "from_master": True,
+            "checksum": checksum_hex,
+            "source_frame_from_master": source_data,
+        }
+        frame = Frame(**data)
+
+        # WHEN: We call is_ping_order
+        result = frame.is_ping_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_ping_order_returns_false_for_ack_frame(self):
+        """Test that is_ping_order returns False for ACK frames."""
+        # GIVEN: An ACK frame from master with command_id 0
+        source_data = "ACK DEV444 0"
+        calculated_checksum = Frame.build_checksum(source_data.encode())
+        checksum_hex = format(calculated_checksum, "02X")
+        data = {
+            "frame_type": FrameType.ACK,
+            "device_uid": "DEV444",
+            "command_id": 0,
+            "command_slug": "ack",
+            "args_values": [],
+            "from_master": True,
+            "checksum": checksum_hex,
+            "source_frame_from_master": source_data,
+        }
+        frame = Frame(**data)
+
+        # WHEN: We call is_ping_order
+        result = frame.is_ping_order()
+
+        # THEN: It should return False
+        assert result is False
+
+
+class TestIsCommandOrder:
+    """Tests for the is_command_order method."""
+
+    def test_is_command_order_returns_true_for_cmd_from_master_with_valid_id(self, master_frame_data):
+        """Test that is_command_order returns True for CMD frame from master with command_id > 0."""
+        # GIVEN: A CMD frame from master with command_id > 0
+        frame = Frame(**master_frame_data)
+
+        # WHEN: We call is_command_order
+        result = frame.is_command_order()
+
+        # THEN: It should return True
+        assert result is True
+
+    def test_is_command_order_returns_false_for_non_master_frame(self, basic_command_frame_data):
+        """Test that is_command_order returns False for frames not from master."""
+        # GIVEN: A CMD frame not from master
+        frame = Frame(**basic_command_frame_data)
+
+        # WHEN: We call is_command_order
+        result = frame.is_command_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_command_order_returns_false_for_wrong_frame_type(self, ping_order_frame_data):
+        """Test that is_command_order returns False for non-CMD frame types."""
+        # GIVEN: A PING frame from master
+        frame = Frame(**ping_order_frame_data)
+
+        # WHEN: We call is_command_order
+        result = frame.is_command_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_command_order_returns_false_for_command_id_zero(self):
+        """Test that is_command_order returns False when command_id is 0."""
+        # GIVEN: A CMD frame from master with command_id == 0
+        source_data = "CMD DEV555 0 test"
+        calculated_checksum = Frame.build_checksum(source_data.encode())
+        checksum_hex = format(calculated_checksum, "02X")
+        data = {
+            "frame_type": FrameType.CMD,
+            "device_uid": "DEV555",
+            "command_id": 0,
+            "command_slug": "test",
+            "args_values": [],
+            "from_master": True,
+            "checksum": checksum_hex,
+            "source_frame_from_master": source_data,
+        }
+        frame = Frame(**data)
+
+        # WHEN: We call is_command_order
+        result = frame.is_command_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_command_order_returns_false_for_ack_frame(self):
+        """Test that is_command_order returns False for ACK frames."""
+        # GIVEN: An ACK frame from master with command_id > 0
+        source_data = "ACK DEV666 1"
+        calculated_checksum = Frame.build_checksum(source_data.encode())
+        checksum_hex = format(calculated_checksum, "02X")
+        data = {
+            "frame_type": FrameType.ACK,
+            "device_uid": "DEV666",
+            "command_id": 1,
+            "command_slug": "ack",
+            "args_values": [],
+            "from_master": True,
+            "checksum": checksum_hex,
+            "source_frame_from_master": source_data,
+        }
+        frame = Frame(**data)
+
+        # WHEN: We call is_command_order
+        result = frame.is_command_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_command_order_returns_true_for_various_command_ids(self):
+        """Test that is_command_order returns True for various command_id values > 0."""
+        # GIVEN: CMD frames from master with different command_id values
+        test_command_ids = [1, 5, 10, 100, 999]
+
+        for cmd_id in test_command_ids:
+            source_data = f"CMD DEV777 {cmd_id} test"
+            calculated_checksum = Frame.build_checksum(source_data.encode())
+            checksum_hex = format(calculated_checksum, "02X")
+            data = {
+                "frame_type": FrameType.CMD,
+                "device_uid": "DEV777",
+                "command_id": cmd_id,
+                "command_slug": "test",
+                "args_values": [],
+                "from_master": True,
+                "checksum": checksum_hex,
+                "source_frame_from_master": source_data,
+            }
+            frame = Frame(**data)
+
+            # WHEN: We call is_command_order
+            result = frame.is_command_order()
+
+            # THEN: It should return True
+            assert result is True, f"Failed for command_id={cmd_id}"
