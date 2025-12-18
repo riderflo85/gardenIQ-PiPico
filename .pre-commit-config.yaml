@@ -7,7 +7,7 @@ repos:
         language: system
         types: [python]
         require_serial: true
-        args: [--force-exclude, .]
+        args: [--force-exclude, ./build|./output]
 
       - id: check-json
         name: Check Json
