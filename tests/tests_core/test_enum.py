@@ -316,3 +316,65 @@ class TestPseudoEnum:
         # THEN: It should return the original string value with correct type
         assert result == "ACTIVE"
         assert isinstance(result, str)
+
+    def test_values_returns_list_of_all_members(self, string_status_enum):
+        """Test that values() returns a list of all enum member values."""
+        # GIVEN: A status enum with string values (from fixture)
+
+        # WHEN: We call values() on the enum
+        result = string_status_enum.values()
+
+        # THEN: It should return a list of all values
+        assert result == ["ACTIVE", "INACTIVE", "PENDING"]
+        assert isinstance(result, list)
+
+    def test_values_with_numeric_enum(self, numeric_pseudoenum):
+        """Test that values() works with numeric values."""
+        # GIVEN: An enum with numeric values (from fixture)
+
+        # WHEN: We call values() on the enum
+        result = numeric_pseudoenum.values()
+
+        # THEN: It should return all numeric values
+        assert result == [1, 2, 3]
+        assert isinstance(result, list)
+
+    def test_values_with_mixed_types(self, mixed_types_enum):
+        """Test that values() works with mixed value types."""
+        # GIVEN: An enum with mixed value types (from fixture)
+
+        # WHEN: We call values() on the enum
+        result = mixed_types_enum.values()
+
+        # THEN: All values of different types should be present
+        assert "string" in result
+        assert 42 in result
+        assert 3.14 in result
+        assert True in result
+        assert len(result) == 4
+
+    def test_values_with_empty_enum(self):
+        """Test that values() returns an empty list for empty enum."""
+
+        # GIVEN: An empty enum class
+        class EmptyEnum(PseudoEnum):
+            pass
+
+        # WHEN: We call values() on the empty enum
+        result = EmptyEnum.values()
+
+        # THEN: An empty list should be returned
+        assert result == []
+        assert isinstance(result, list)
+
+    def test_values_returns_new_list_each_time(self, string_status_enum):
+        """Test that values() returns a new list instance each time."""
+        # GIVEN: A status enum (from fixture)
+
+        # WHEN: We call values() twice
+        result1 = string_status_enum.values()
+        result2 = string_status_enum.values()
+
+        # THEN: Both should have the same content but be different list objects
+        assert result1 == result2
+        assert result1 is not result2
