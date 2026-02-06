@@ -21,6 +21,8 @@ class FrameHandler:
 
         if frame.is_ping_order():
             self._handle_ping_order()
+        elif frame.is_init_order():
+            self._handle_init_order()
         elif frame.is_command_order():
             self._handle_command_order()
         else:
@@ -48,3 +50,6 @@ class FrameHandler:
         Send the response to master.
         """
         # TODO: Finish this method when the command store are available.
+
+    def _handle_init_order(self) -> None:
+        """Complete or update a initial command registry."""
