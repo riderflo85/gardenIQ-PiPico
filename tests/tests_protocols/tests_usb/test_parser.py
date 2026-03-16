@@ -5,6 +5,7 @@ from src.protocols.errors import FrameParsingError
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
+from src.protocols.usb.frame import ModelType
 from src.protocols.usb.parser import FrameParser
 
 
@@ -15,7 +16,7 @@ class TestFrameParserParseFromMaster:
     @pytest.fixture
     def valid_ping_frame(self):
         """Valid ping command frame from master (command_id = 0)."""
-        return "< PING device123 0 ping > 3C\n"
+        return "< PING device123 0 > 3C\n"
 
     @pytest.fixture
     def valid_command_frame_no_args(self):
@@ -32,6 +33,16 @@ class TestFrameParserParseFromMaster:
         """Valid command frame with a single argument."""
         return "< CMD device999 3 set_duration 30 > 7F\n"
 
+    @pytest.fixture
+    def valid_lg_init_frame(self):
+        """Valid LG_INIT frame from master."""
+        return "< LG_INIT device111 -1 Order language;fr > 8A\n"
+
+    @pytest.fixture
+    def valid_lg_init_frame_multiple_fields(self):
+        """Valid LG_INIT frame with multiple model fields."""
+        return "< LG_INIT device222 -1 Argument name;temperature;unit;celsius > 9B\n"
+
     # Tests for valid frames
     def test_parse_valid_ping_frame(self, valid_ping_frame):
         # GIVEN a valid ping frame string from master
@@ -45,11 +56,11 @@ class TestFrameParserParseFromMaster:
         assert result.frame_type == FrameType.PING
         assert result.device_uid == "device123"
         assert result.command_id == 0
-        assert result.command_slug == "ping"
-        assert result.args_values == []
+        assert result.command_slug is None
+        assert result.args_values == ()
         assert result.from_master is True
         assert result.checksum == "3C"
-        assert result.source_frame_from_master == "< PING device123 0 ping > 3C"
+        assert result.source_frame_from_master == "< PING device123 0 > 3C"
 
     def test_parse_valid_command_no_args(self, valid_command_frame_no_args):
         # GIVEN a valid command frame without arguments
@@ -64,7 +75,7 @@ class TestFrameParserParseFromMaster:
         assert result.device_uid == "device456"
         assert result.command_id == 1
         assert result.command_slug == "water_now"
-        assert result.args_values == []
+        assert result.args_values == ()
         assert result.from_master is True
         assert result.checksum == "42"
 
@@ -81,7 +92,7 @@ class TestFrameParserParseFromMaster:
         assert result.device_uid == "device789"
         assert result.command_id == 2
         assert result.command_slug == "set_schedule"
-        assert result.args_values == ["08:00", "18:00", "daily"]
+        assert result.args_values == ("08:00", "18:00", "daily")
         assert result.from_master is True
         assert result.checksum == "5A"
 
@@ -95,7 +106,7 @@ class TestFrameParserParseFromMaster:
         # THEN the frame is correctly parsed
         assert result.command_id == 3
         assert result.command_slug == "set_duration"
-        assert result.args_values == ["30"]
+        assert result.args_values == ("30",)
 
     # Tests for invalid frames - missing newline
     def test_parse_frame_without_newline_raises_error(self):
@@ -112,7 +123,7 @@ class TestFrameParserParseFromMaster:
     # Tests for invalid frames - too short
     def test_parse_frame_too_short_raises_error(self):
         # GIVEN a frame string that is too short (less than 7 parts)
-        frame_str = "< CMD device123 0 > 3C\n"
+        frame_str = "< CMD device123 > 3C\n"
 
         # WHEN parsing the frame
         # THEN a FrameParsingError is raised
@@ -202,7 +213,53 @@ class TestFrameParserParseFromMaster:
 
         # THEN the slug is correctly parsed
         assert result.command_slug == "water_zone_2"
-        assert result.args_values == ["value1", "value2"]
+        assert result.args_values == ("value1", "value2")
+
+    def test_parse_valid_lg_init_frame(self, valid_lg_init_frame):
+        # GIVEN a valid LG_INIT frame string from master
+        frame_str = valid_lg_init_frame
+
+        # WHEN parsing the frame
+        result = FrameParser.parse_from_master(frame_str)
+
+        # THEN the frame is correctly parsed
+        assert isinstance(result, Frame)
+        assert result.frame_type == FrameType.LG_INIT
+        assert result.device_uid == "device111"
+        assert result.command_id == -1
+        assert result.model == ModelType.ORDER
+        assert result.model_attrs_values == ("language", "fr")
+        assert result.command_slug is None
+        assert result.from_master is True
+        assert result.checksum == "8A"
+
+    def test_parse_valid_lg_init_frame_with_multiple_fields(self, valid_lg_init_frame_multiple_fields):
+        # GIVEN a LG_INIT frame with multiple model fields
+        frame_str = valid_lg_init_frame_multiple_fields
+
+        # WHEN parsing the frame
+        result = FrameParser.parse_from_master(frame_str)
+
+        # THEN the frame is correctly parsed with all model fields
+        assert result.frame_type == FrameType.LG_INIT
+        assert result.device_uid == "device222"
+        assert result.command_id == -1
+        assert result.model == ModelType.ARGUMENT
+        assert result.model_attrs_values == ("name", "temperature", "unit", "celsius")
+        assert result.command_slug is None
+        assert result.checksum == "9B"
+
+    def test_parse_lg_init_frame_with_order_model(self):
+        # GIVEN a LG_INIT frame with Order model type
+        frame_str = "< LG_INIT device333 -1 Order slug;test_order;priority;high > CC\n"
+
+        # WHEN parsing the frame
+        result = FrameParser.parse_from_master(frame_str)
+
+        # THEN the Order model is correctly parsed
+        assert result.model == ModelType.ORDER
+        assert result.model_attrs_values == ("slug", "test_order", "priority", "high")
+        assert result.command_id == -1
 
 
 class TestFrameParserParseFromFrameKlass:
@@ -285,6 +342,29 @@ class TestFrameParserParseFromFrameKlass:
             source_frame_from_master="< CMD device222 1 test > 3C",
         )
 
+    @pytest.fixture
+    def lg_init_response_frame_ok(self):
+        """Frame object for a successful LG_INIT response."""
+        return Frame(
+            frame_type=FrameType.ACK,
+            device_uid="device777",
+            command_id=-1,
+            from_master=False,
+            command_state=CommandState.OK,
+        )
+
+    @pytest.fixture
+    def lg_init_response_frame_error(self):
+        """Frame object for a LG_INIT response with error."""
+        return Frame(
+            frame_type=FrameType.ACK,
+            device_uid="device888",
+            command_id=-1,
+            from_master=False,
+            command_state=CommandState.ERROR,
+            err_msg=CommandError.INVALID_PARAM,
+        )
+
     # Tests for ping responses
     def test_serialize_ping_response_ok(self, ping_response_frame_ok):
         # GIVEN a successful ping response frame
@@ -332,7 +412,7 @@ class TestFrameParserParseFromFrameKlass:
         result = FrameParser.parse_from_frame_klass(frame)
 
         # THEN the frame string has empty data field
-        assert "< ACK device999 3 OK  >" in result
+        assert "< ACK device999 3 OK >" in result
         assert result.endswith("\n")
 
     def test_serialize_command_response_error(self, command_response_error):
@@ -425,8 +505,8 @@ class TestFrameParserParseFromFrameKlass:
         # WHEN serializing the frame
         result = FrameParser.parse_from_frame_klass(frame)
 
-        # THEN None is converted to string "None"
-        assert "< ACK device444 15 OK None >" in result
+        # THEN None is not included in the output, but the frame is still valid
+        assert "< ACK device444 15 OK >" in result
 
     def test_serialize_with_complex_data_string(self):
         # GIVEN a frame with complex data containing special characters
@@ -444,6 +524,55 @@ class TestFrameParserParseFromFrameKlass:
 
         # THEN the complex data is preserved
         assert "temp:23.5,humidity:65.2,pressure:1013.25" in result
+
+    def test_serialize_lg_init_response_ok(self, lg_init_response_frame_ok):
+        # GIVEN a successful LG_INIT response frame
+        frame = lg_init_response_frame_ok
+
+        # WHEN serializing the frame
+        result = FrameParser.parse_from_frame_klass(frame)
+
+        # THEN the frame string is correctly formatted without conditional part
+        assert "< ACK device777 -1 OK >" in result
+        assert result.endswith("\n")
+        # Verify checksum is present
+        parts = result.strip().split(" ")
+        checksum = parts[-1]
+        assert len(checksum) == 2
+        assert all(c in "0123456789ABCDEF" for c in checksum)
+
+    def test_serialize_lg_init_response_error(self, lg_init_response_frame_error):
+        # GIVEN a LG_INIT response frame with error
+        frame = lg_init_response_frame_error
+
+        # WHEN serializing the frame
+        result = FrameParser.parse_from_frame_klass(frame)
+
+        # THEN the frame string contains error message
+        assert "< ACK device888 -1 ERR INVALID_PARAM >" in result
+        assert result.endswith("\n")
+
+    def test_serialize_lg_init_response_has_no_data_when_ok(self):
+        # GIVEN a successful LG_INIT response (command_id == -1)
+        frame = Frame(
+            frame_type=FrameType.ACK,
+            device_uid="device999",
+            command_id=-1,
+            from_master=False,
+            command_state=CommandState.OK,
+        )
+
+        # WHEN serializing the frame
+        result = FrameParser.parse_from_frame_klass(frame)
+
+        # THEN there is no conditional part between OK and ETX
+        assert "< ACK device999 -1 OK >" in result
+        # Ensure there's no extra data between OK and >
+        parts = result.split(" ")
+        ok_index = parts.index("OK")
+        etx_index = parts.index(">")
+        # There should be no parts between OK and ETX
+        assert etx_index == ok_index + 1
 
 
 class TestFrameParserRoundTrip:
@@ -498,3 +627,31 @@ class TestFrameParserRoundTrip:
         assert "GDFW=2.1.0" in response_str
         assert "MPFW=1.20.0" in response_str
         assert "< ACK device999 0 OK" in response_str
+
+    def test_roundtrip_lg_init_parsing_and_response(self):
+        # GIVEN a LG_INIT frame from master
+        lg_init_str = "< LG_INIT device444 -1 Order language;en > CD\n"
+
+        # WHEN parsing the LG_INIT frame
+        parsed_lg_init = FrameParser.parse_from_master(lg_init_str)
+
+        # THEN the parsed frame has correct attributes
+        assert parsed_lg_init.command_id == -1
+        assert parsed_lg_init.model == ModelType.ORDER
+        assert parsed_lg_init.model_attrs_values == ("language", "en")
+
+        # AND creating a LG_INIT response
+        lg_init_response = Frame(
+            frame_type=FrameType.ACK,
+            device_uid=parsed_lg_init.device_uid,
+            command_id=-1,
+            from_master=False,
+            command_state=CommandState.OK,
+        )
+
+        # AND serializing the response
+        response_str = FrameParser.parse_from_frame_klass(lg_init_response)
+
+        # THEN the response is correctly formatted
+        assert "< ACK device444 -1 OK >" in response_str
+        assert response_str.endswith("\n")

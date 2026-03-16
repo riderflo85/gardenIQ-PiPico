@@ -51,8 +51,25 @@ class PseudoEnum(metaclass=PseudoEnumMeta):
         Returns:
             str | None: The matching enum member if found, otherwise None.
         """
-        value = value.upper()
         for member in cls:
+            if not isinstance(member, str):
+                break
+            if member.isupper():
+                value = value.upper()
+            elif member.istitle():
+                value = value.title()
+
             if member == value:
                 return member
+
         return None
+
+    @classmethod
+    def values(cls) -> list[str]:
+        """
+        Returns a list of all enum member values.
+
+        Returns:
+            list[str]: A list containing all enum member values.
+        """
+        return [member for member in cls]

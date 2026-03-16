@@ -4,6 +4,7 @@ from src.protocols.settings import STX
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
+from src.protocols.usb.frame import ModelType
 
 
 class FrameParser:
@@ -48,7 +49,9 @@ class FrameParser:
         recv_str = recv_str.removesuffix("\n")
         parts = recv_str.split(" ")
 
-        if len(parts) < 7:
+        # Minimum valid frame has 6 parts: STX, frame_type, device_uid, command_id, command_state, ETX, checksum
+        # E.G: parts = "< PING device123 0 > 3C"
+        if len(parts) < 6:
             raise FrameParsingError(
                 f"The received string is too short. Warning: the system may be infected. recv: {recv_str}"
             )
@@ -71,24 +74,30 @@ class FrameParser:
         # Extract device UID and command ID
         device_uid = parts[2]
         command_id = int(parts[3])
-        command_slug = parts[4]
+        command_slug = None
+        args_values = ()
+        model = None
+        model_fields_values = ()
 
         # Parse args values
-        if command_id > 0:
+        if command_id == -1:
+            # Is a initial command to received all Order language.
+            model = ModelType.from_string(parts[4])
+            model_fields_values = tuple(parts[5].split(";"))
+        elif command_id > 0:
+            command_slug = parts[4]
             args = parts[5]
             if len(parts) > 6 and ("," in args or args != ">"):
-                args_values = args.split(",")
-            else:
-                args_values = []
+                args_values = tuple(args.split(","))
         # command_id == 0 is a ping command, so no args
-        else:
-            args_values = []
 
         return Frame(
             frame_type=frame_type,
             device_uid=device_uid,
             command_id=command_id,
             from_master=True,
+            model=model,
+            model_attrs_values=model_fields_values,
             command_slug=command_slug,
             args_values=args_values,
             checksum=checksum,
@@ -120,12 +129,10 @@ class FrameParser:
 
         Note:
             The conditional frame part varies based on command_id and command_state:
-            - For command_id > 0:
-                - If command_state is not ERROR: "command_state ok_data"
-                - If command_state is ERROR: "command_state err_msg"
-            - For command_id == 0 (ping):
-                - If command_state is not ERROR: "command_state GDFW=<gd_fw_version> MPFW=<mp_fw_version>"
-                - If command_state is ERROR: "command_state err_msg"
+            - If command_state is ERROR, the conditional part is the error message (err_msg).
+            - If command_id is 0 (ping response), the conditional part includes firmware versions.
+            - If command_id > 0, the conditional part is the ok_data. e.g. Back order `get_temp` -> ok_data == 21.
+            - If command_id == -1, there is no conditional part.
         """
         if frame_obj.from_master:
             raise FrameParsingError("Cannot build frame from master frame.")
@@ -134,13 +141,16 @@ class FrameParser:
         # local variables = fewer attribute lookups (performance gain in MicroPython)
         command_id = frame_obj.command_id
         state = frame_obj.command_state
-        if command_id > 0:
-            data = frame_obj.err_msg if state == CommandState.ERROR else frame_obj.ok_data
-            conditionnal_part = data
-        elif state == CommandState.ERROR:
+
+        if state == CommandState.ERROR:
             conditionnal_part = frame_obj.err_msg
-        else:
+        elif command_id == 0:  # is a ping response
             conditionnal_part = f"GDFW={frame_obj.gd_fw_version} MPFW={frame_obj.mp_fw_version}"
+        elif command_id > 0:
+            conditionnal_part = frame_obj.ok_data
+        else:
+            # command_id == -1 is a initial order language response. Have not data to send
+            conditionnal_part = None
 
         parts = [
             STX,
@@ -148,9 +158,11 @@ class FrameParser:
             frame_obj.device_uid,
             str(command_id),
             str(state),
-            str(conditionnal_part),
-            ETX,
         ]
+        if conditionnal_part:
+            parts += [str(conditionnal_part), ETX]
+        else:
+            parts.append(ETX)
 
         # Build complete frame
         frame_str = " ".join(parts)

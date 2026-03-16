@@ -10,11 +10,20 @@ class FrameType(PseudoEnum):
     - CMD: Command frame — carries instructions or actions to be executed
     - PING: Keep-alive / heartbeat frame used to verify connectivity
     - ACK: Acknowledgement frame indicating successful receipt or processing
+    - LG_INIT: Received initial order language from the backend service to the device.
     """
 
     CMD = "CMD"
     PING = "PING"
     ACK = "ACK"
+    LG_INIT = "LG_INIT"
+
+
+class ModelType(PseudoEnum):
+    """Model types for frame commands."""
+
+    ARGUMENT = "Argument"
+    ORDER = "Order"
 
 
 class CommandState(PseudoEnum):
@@ -34,6 +43,8 @@ class Frame:
         "command_slug",
         "args_values",
         "from_master",
+        "model",
+        "model_attrs_values",
         "command_state",
         "ok_data",
         "err_msg",
@@ -47,11 +58,13 @@ class Frame:
         self,
         frame_type: FrameType | str,
         device_uid: str,
-        command_id: int,
+        command_id: int,  # If -1 -> LG_INIT frame / If 0 -> Ping frame / If >0 -> Order command id
         from_master: bool = False,  # master is the backend service
+        model: ModelType | str | None = None,
+        model_attrs_values: tuple[str, ...] = (),  # It's a fields values of Django model backend service
         command_slug: str | None = None,
         command_state: CommandState | str | None = None,  # State of the command on this device
-        args_values: list[str] | None = None,  # Arguments values for the command when from master
+        args_values: tuple[str, ...] = (),  # Arguments values for the command when from master
         ok_data: str | None = None,  # Data send to master service when command sended is OK state
         err_msg: CommandError | str | None = None,  # Error message if cmd_state is ERROR
         gd_fw_version: str | None = None,  # GardenIQ Firmware Version
@@ -66,6 +79,8 @@ class Frame:
         self.command_slug = command_slug
         self.args_values = args_values
         self.from_master = from_master
+        self.model = model
+        self.model_attrs_values = model_attrs_values
         self.command_state = command_state
         self.ok_data = ok_data
         self.err_msg = err_msg
@@ -84,17 +99,24 @@ class Frame:
         This method is automatically called in the class __init__ method.
         It ensures that if the frame is from a master, both the checksum and
         source_frame_from_master attributes are provided.
+        It also validates the model type if provided, and checks firmware
+        version formats for ping commands.
 
         Raises:
             ValueError: If from_master is True and checksum is None.
             ValueError: If from_master is True and source_frame_from_master is None.
             ValueError: If command_id is 0 and not from_master and firmware versions are missing or invalid.
+            ValueError: If command_id is -1, from_master is True, and model is None.
+            ValueError: If model type is invalid.
         """
         if self.from_master:
             if self.checksum is None:
                 raise ValueError("checksum required")
             if self.source_frame_from_master is None:
                 raise ValueError("source_frame required")
+
+        if self.model is not None and self.model not in ModelType.values():
+            raise ValueError(f"Invalid model type: {self.model}")
 
         if self.command_id == 0 and not self.from_master:
             if self.gd_fw_version is None or self.mp_fw_version is None:
@@ -103,6 +125,9 @@ class Frame:
                 raise ValueError("Invalid GardenIQ firmware version format")
             if not pattern_strict_version.match(self.mp_fw_version):
                 raise ValueError("Invalid MicroPython firmware version format")
+
+        if (self.command_id == -1 and self.from_master) and self.model is None:
+            raise ValueError("model must be provided if command_id is -1 and from_master is True")
 
     @staticmethod
     def build_checksum(data: bytes) -> int:
@@ -154,6 +179,9 @@ class Frame:
         # Calculate the checksum for the data part
         calculated_checksum = self.build_checksum(self.source_frame_from_master.encode())
         return calculated_checksum == expected_checksum
+
+    def is_init_order(self) -> bool:
+        return self.from_master and self.frame_type == FrameType.LG_INIT and self.command_id == -1
 
     def is_ping_order(self) -> bool:
         return self.from_master and self.frame_type == FrameType.PING and self.command_id == 0

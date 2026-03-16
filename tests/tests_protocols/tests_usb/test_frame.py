@@ -4,6 +4,7 @@ from src.protocols.errors import CommandError
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
+from src.protocols.usb.frame import ModelType
 
 
 # Fixtures
@@ -97,6 +98,26 @@ def ping_order_frame_data():
     }
 
 
+@pytest.fixture
+def lg_init_frame_data():
+    """Fixture providing data for a LG_INIT frame (from master)."""
+    source_data = "LG_INIT DEV333 -1 Order language fr"
+    calculated_checksum = Frame.build_checksum(source_data.encode())
+    checksum_hex = format(calculated_checksum, "02X")
+    return {
+        "frame_type": FrameType.LG_INIT,
+        "device_uid": "DEV333",
+        "command_id": -1,
+        "command_slug": None,
+        "args_values": None,
+        "from_master": True,
+        "model": ModelType.ORDER,
+        "model_attrs_values": ("language", "fr"),
+        "checksum": checksum_hex,
+        "source_frame_from_master": source_data,
+    }
+
+
 class TestFrameType:
     """Tests for the FrameType enum."""
 
@@ -130,6 +151,16 @@ class TestFrameType:
         # THEN: It should equal "PING"
         assert ping_type == "PING"
 
+    def test_frame_type_has_lg_init(self):
+        """Test that FrameType has LG_INIT value."""
+        # GIVEN: The FrameType enum
+
+        # WHEN: We access the LG_INIT attribute
+        lg_init_type = FrameType.LG_INIT
+
+        # THEN: It should equal "LG_INIT"
+        assert lg_init_type == "LG_INIT"
+
     def test_frame_type_iteration(self):
         """Test that FrameType can be iterated."""
         # GIVEN: The FrameType enum
@@ -141,7 +172,44 @@ class TestFrameType:
         assert "CMD" in values
         assert "PING" in values
         assert "ACK" in values
-        assert len(values) == 3
+        assert "LG_INIT" in values
+        assert len(values) == 4
+
+
+class TestModelType:
+    """Tests for the ModelType enum."""
+
+    def test_model_type_has_argument(self):
+        """Test that ModelType has ARGUMENT value."""
+        # GIVEN: The ModelType enum
+
+        # WHEN: We access the ARGUMENT attribute
+        argument_type = ModelType.ARGUMENT
+
+        # THEN: It should equal "Argument"
+        assert argument_type == "Argument"
+
+    def test_model_type_has_order(self):
+        """Test that ModelType has ORDER value."""
+        # GIVEN: The ModelType enum
+
+        # WHEN: We access the ORDER attribute
+        order_type = ModelType.ORDER
+
+        # THEN: It should equal "Order"
+        assert order_type == "Order"
+
+    def test_model_type_iteration(self):
+        """Test that ModelType can be iterated."""
+        # GIVEN: The ModelType enum
+
+        # WHEN: We iterate over ModelType
+        values = list(ModelType)
+
+        # THEN: It should contain all model types
+        assert "Argument" in values
+        assert "Order" in values
+        assert len(values) == 2
 
 
 class TestCommandState:
@@ -197,6 +265,8 @@ class TestFrameInitialization:
         assert frame.command_slug == "test_command"
         assert frame.args_values == ["arg1", "arg2"]
         assert frame.from_master is False
+        assert frame.model is None
+        assert frame.model_attrs_values == ()
         assert frame.command_state is None
         assert frame.ok_data is None
         assert frame.err_msg is None
@@ -259,6 +329,20 @@ class TestFrameInitialization:
         # THEN: Firmware versions should be set correctly
         assert frame.gd_fw_version == "1.0.0"
         assert frame.mp_fw_version == "1.20.0"
+
+    def test_frame_creation_with_lg_init(self, lg_init_frame_data):
+        """Test creating a LG_INIT frame."""
+        # GIVEN: LG_INIT frame data (from fixture)
+
+        # WHEN: We create a Frame instance
+        frame = Frame(**lg_init_frame_data)
+
+        # THEN: LG_INIT attributes should be set correctly
+        assert frame.frame_type == FrameType.LG_INIT
+        assert frame.command_id == -1
+        assert frame.from_master is True
+        assert frame.model == ModelType.ORDER
+        assert frame.model_attrs_values == ("language", "fr")
 
 
 class TestFrameValidation:
@@ -383,6 +467,57 @@ class TestFrameValidation:
         assert frame.command_id == 0
         assert frame.gd_fw_version == "1.0.0"
         assert frame.mp_fw_version == "1.20.0"
+
+    def test_validation_fails_with_invalid_model_type(self, basic_command_frame_data):
+        """Test that validation fails with an invalid model type."""
+        # GIVEN: Frame data with invalid model type
+        data = {**basic_command_frame_data, "model": "InvalidModel"}
+
+        # WHEN/THEN: Creating the frame should raise ValueError
+        with pytest.raises(ValueError, match="Invalid model type"):
+            Frame(**data)
+
+    def test_validation_passes_with_valid_model_type(self, basic_command_frame_data):
+        """Test that validation passes with a valid model type."""
+        # GIVEN: Frame data with valid model type
+        data = {**basic_command_frame_data, "model": ModelType.ARGUMENT}
+
+        # WHEN: We create a Frame instance
+        frame = Frame(**data)
+
+        # THEN: The frame should be created successfully
+        assert frame.model == ModelType.ARGUMENT
+
+    def test_validation_fails_when_lg_init_from_master_without_model(self):
+        """Test that validation fails for LG_INIT from master without model."""
+        # GIVEN: LG_INIT frame data from master without model
+        source_data = "LG_INIT DEV444 -1"
+        calculated_checksum = Frame.build_checksum(source_data.encode())
+        checksum_hex = format(calculated_checksum, "02X")
+        data = {
+            "frame_type": FrameType.LG_INIT,
+            "device_uid": "DEV444",
+            "command_id": -1,
+            "from_master": True,
+            "checksum": checksum_hex,
+            "source_frame_from_master": source_data,
+        }
+
+        # WHEN/THEN: Creating the frame should raise ValueError
+        with pytest.raises(ValueError, match="model must be provided if command_id is -1 and from_master is True"):
+            Frame(**data)
+
+    def test_validation_passes_when_lg_init_from_master_with_model(self, lg_init_frame_data):
+        """Test that validation passes for LG_INIT from master with model."""
+        # GIVEN: LG_INIT frame data from master with model (from fixture)
+
+        # WHEN: We create a Frame instance
+        frame = Frame(**lg_init_frame_data)
+
+        # THEN: The frame should be created successfully
+        assert frame.command_id == -1
+        assert frame.from_master is True
+        assert frame.model == ModelType.ORDER
 
 
 class TestBuildChecksum:
@@ -694,6 +829,78 @@ class TestIsPingOrder:
 
         # WHEN: We call is_ping_order
         result = frame.is_ping_order()
+
+        # THEN: It should return False
+        assert result is False
+
+
+class TestIsInitOrder:
+    """Tests for the is_init_order method."""
+
+    def test_is_init_order_returns_true_for_lg_init_from_master(self, lg_init_frame_data):
+        """Test that is_init_order returns True for LG_INIT frame from master."""
+        # GIVEN: A LG_INIT frame from master (from fixture)
+        frame = Frame(**lg_init_frame_data)
+
+        # WHEN: We call is_init_order
+        result = frame.is_init_order()
+
+        # THEN: It should return True
+        assert result is True
+
+    def test_is_init_order_returns_false_for_non_master_frame(self, basic_command_frame_data):
+        """Test that is_init_order returns False for non-master frames."""
+        # GIVEN: A frame not from master (from fixture)
+        frame = Frame(**basic_command_frame_data)
+
+        # WHEN: We call is_init_order
+        result = frame.is_init_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_init_order_returns_false_for_wrong_frame_type(self, master_frame_data):
+        """Test that is_init_order returns False for wrong frame type."""
+        # GIVEN: A CMD frame from master (from fixture)
+        frame = Frame(**master_frame_data)
+
+        # WHEN: We call is_init_order
+        result = frame.is_init_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_init_order_returns_false_for_wrong_command_id(self):
+        """Test that is_init_order returns False for wrong command_id."""
+        # GIVEN: A LG_INIT frame from master with wrong command_id
+        source_data = "LG_INIT DEV555 0 Order language en"
+        calculated_checksum = Frame.build_checksum(source_data.encode())
+        checksum_hex = format(calculated_checksum, "02X")
+        data = {
+            "frame_type": FrameType.LG_INIT,
+            "device_uid": "DEV555",
+            "command_id": 0,
+            "from_master": True,
+            "model": ModelType.ORDER,
+            "model_attrs_values": ("language", "en"),
+            "checksum": checksum_hex,
+            "source_frame_from_master": source_data,
+        }
+        frame = Frame(**data)
+
+        # WHEN: We call is_init_order
+        result = frame.is_init_order()
+
+        # THEN: It should return False
+        assert result is False
+
+    def test_is_init_order_returns_false_for_ping_frame(self, ping_order_frame_data):
+        """Test that is_init_order returns False for PING frames."""
+        # GIVEN: A PING frame from master (from fixture)
+        frame = Frame(**ping_order_frame_data)
+
+        # WHEN: We call is_init_order
+        result = frame.is_init_order()
 
         # THEN: It should return False
         assert result is False
