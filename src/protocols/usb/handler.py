@@ -9,7 +9,7 @@ from .parser import FrameParser
 
 class FrameHandler:
 
-    def handle_master_command(self, frame: Frame) -> None:
+    def handle_master_command(self, frame: Frame) -> None | str:
         if not frame.from_master:
             raise ValueError("Frame is not from master. Cannot execute.")
 
@@ -20,15 +20,15 @@ class FrameHandler:
             )
 
         if frame.is_ping_order():
-            self._handle_ping_order()
+            return self._handle_ping_order()
         elif frame.is_init_order():
             self._handle_init_order()
         elif frame.is_command_order():
-            self._handle_command_order()
+            return self._handle_command_order()
         else:
             return
 
-    def _handle_ping_order(self) -> None:
+    def _handle_ping_order(self) -> str:
         """Construct the ping order response with versions and device uid.
         Send the response to master.
         """
@@ -39,9 +39,8 @@ class FrameHandler:
             gd_fw_version=__version__,
             mp_fw_version=micropython_version,
         )
-        frame_response = FrameParser.parse_from_frame_klass(frame_obj)  # noqa: F841
-        # TODO: Send frame_response to master service.
-        #       Create function to this !
+        frame_response = FrameParser.parse_from_frame_klass(frame_obj)
+        return frame_response
 
     def _handle_command_order(self) -> None:
         """Fetch the command in command store.
@@ -53,3 +52,7 @@ class FrameHandler:
 
     def _handle_init_order(self) -> None:
         """Complete or update a initial command registry."""
+
+
+# Create a singleton of FrameHandler
+frame_handler = FrameHandler()
