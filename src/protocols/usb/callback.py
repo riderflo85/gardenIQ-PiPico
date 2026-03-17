@@ -2,6 +2,8 @@ from src.core import DEVICE_UID
 from src.core import FrozenDataclass
 from src.core import event_emitter
 from src.protocols.errors import CommandError
+from src.protocols.settings import ETX
+from src.protocols.settings import STX
 
 from .dataqueue import data_received
 from .dataqueue import data_to_response
@@ -54,12 +56,22 @@ async def on_error_occurred(error_message: str, error_type: str, trigger_order: 
             err_msg=formated_err_msg,
         )
     else:
+        # trigger_order can be `< CMD 15UID 12 get_temp > AG\n`. `AG` is checksum.
+        if trigger_order.endswith("\n"):
+            trigger_order = trigger_order.removesuffix("\n")
+        if STX in trigger_order and ETX in trigger_order:
+            trigger_order = trigger_order.replace(STX, "")
+            trigger_order = trigger_order.replace(ETX, "")
+            trigger_order = trigger_order[:-3]  # Remove checksum ` AG`
+            trigger_order = trigger_order.strip()
+        formated_trigger_order = trigger_order.replace(" ", "-")
+
         error_frame_obj = Frame(
             FrameType.ACK,
             DEVICE_UID,
             command_id=-502,
             command_state=CommandState.ERROR,
-            err_msg=formated_err_msg + f":order:{trigger_order}",
+            err_msg=formated_err_msg + f":order:{formated_trigger_order}",
         )
     error_frame_str = FrameParser.parse_from_frame_klass(error_frame_obj)
     await event_emitter.emit("response:ready", error_frame_str)

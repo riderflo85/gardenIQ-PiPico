@@ -3,17 +3,11 @@ import sys
 
 from src.core import event_emitter
 
-from .callback import cb_register
 from .dataqueue import data_received as inbox
 from .dataqueue import data_to_response as outbox
 from .frame import CommandError
 from .frame import Frame
 from .parser import FrameParser
-
-# TODO: À déplacer dans le fichier main.py qui sera le point de départ du programme sur la carte !
-# Register all callback to event
-for cb in cb_register:
-    event_emitter.on(cb.name, cb.func)
 
 
 async def task_received_order():
@@ -55,7 +49,3 @@ async def runner():
     asyncio.create_task(task_received_order())
     asyncio.create_task(task_process_order())
     asyncio.create_task(task_response_to_master())
-
-
-# Dans le fichier main.py qui sera le point de départ du programme sur la carte, ajouter :
-# asyncio.run(runner())
