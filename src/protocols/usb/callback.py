@@ -28,7 +28,7 @@ async def on_order_received(raw_data: bytes) -> None:
     Returns:
         None
     """
-    await data_received.put(raw_data.decode("utf-8").strip())
+    await data_received.put(raw_data.decode("utf-8"))
 
 
 async def on_order_process(order: Frame) -> None:
@@ -36,7 +36,7 @@ async def on_order_process(order: Frame) -> None:
     if not frame_to_response:
         err_msg = "Cannot handle and process the command. No response generated."
         err_type = CommandError.UNKNOW_ERR
-        await event_emitter.emit("error:occured", err_msg, err_type, order)
+        await event_emitter.emit("error:occurred", err_msg, err_type, order)
         return
 
     await event_emitter.emit("response:ready", frame_to_response)

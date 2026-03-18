@@ -31,7 +31,7 @@ async def task_process_order():
             err_type = CommandError.UNKNOW_ERR
             if order.endswith("\n"):
                 order = order.removesuffix("\n")
-            await event_emitter.emit("error:occured", str(e), err_type, order)
+            await event_emitter.emit("error:occurred", str(e), err_type, order)
 
         inbox.task_done()
         await asyncio.sleep(0.5)

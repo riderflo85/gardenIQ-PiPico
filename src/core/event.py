@@ -3,6 +3,12 @@
 from typing import Callable
 
 
+class UnknownEventError(ValueError):
+    """Raised when an unknown event is emitted."""
+
+    pass
+
+
 class EventEmitter:
     """
     EventEmitter class for managing event-driven architecture.
@@ -49,9 +55,14 @@ class EventEmitter:
 
         Returns:
             None
+
+        Raises:
+            UnknownEventError: If no listener is registered for the event_name.
         """
         if self._listeners.get(event_name, None):
             self._listeners.pop(event_name)
+        else:
+            raise UnknownEventError(f"No listener registered for event: {event_name}")
 
     async def emit(self, event_name: str, *args, **kwargs) -> None:
         """
@@ -66,7 +77,9 @@ class EventEmitter:
             None
 
         Raises:
-            None. If no listener is registered for the event_name, the event is silently ignored.
+            UnknownEventError: If no listener is registered for the event_name.
         """
         if callback := self._listeners.get(event_name, None):
             await callback(*args, **kwargs)
+        else:
+            raise UnknownEventError(f"No listener registered for event: {event_name}")
