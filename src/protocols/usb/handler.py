@@ -2,6 +2,7 @@ from src.__version__ import __version__
 from src.__version__ import micropython_version
 from src.core import DEVICE_UID
 
+from .frame import CommandState
 from .frame import Frame
 from .frame import FrameType
 from .parser import FrameParser
@@ -13,6 +14,12 @@ class FrameHandler:
         if not frame.from_master:
             raise ValueError("Frame is not from master. Cannot execute.")
 
+        if frame.device_uid not in (DEVICE_UID, "UKW_DEV_UID"):
+            raise Exception(
+                f"Received command for device UID {frame.device_uid},"
+                " but this device UID does not match the current device UID."
+            )
+
         # Verify checksum
         if not frame.verify_checksum():
             raise ValueError(
@@ -22,7 +29,7 @@ class FrameHandler:
         if frame.is_ping_order():
             return self._handle_ping_order()
         elif frame.is_init_order():
-            self._handle_init_order()
+            return self._handle_init_order()
         elif frame.is_command_order():
             return self._handle_command_order()
         else:
@@ -36,6 +43,7 @@ class FrameHandler:
             frame_type=FrameType.ACK,
             device_uid=DEVICE_UID,
             command_id=0,
+            command_state=CommandState.OK,
             gd_fw_version=__version__,
             mp_fw_version=micropython_version,
         )
