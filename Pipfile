@@ -16,6 +16,7 @@ pre-commit = "*"
 pre-commit-hooks = "*"
 coverage = "*"
 pytest-cov = "*"
+pytest-asyncio = "*"
 
 [requires]
 python_version = "3.13"

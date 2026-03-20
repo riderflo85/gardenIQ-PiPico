@@ -60,7 +60,7 @@ class TestFrameParserParseFromMaster:
         assert result.args_values == ()
         assert result.from_master is True
         assert result.checksum == "3C"
-        assert result.source_frame_from_master == "< PING device123 0 > 3C"
+        assert result.source_frame_from_master == "< PING device123 0 >"
 
     def test_parse_valid_command_no_args(self, valid_command_frame_no_args):
         # GIVEN a valid command frame without arguments
