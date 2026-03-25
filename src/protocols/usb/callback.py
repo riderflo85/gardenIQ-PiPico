@@ -11,7 +11,7 @@ from .frame import CommandState
 from .frame import Frame
 from .frame import FrameType
 from .handler import frame_handler
-from .parser import FrameParser
+from .parsers import FrameParser
 
 
 class FrozRegisterCB(FrozenDataclass):

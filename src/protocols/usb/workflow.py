@@ -7,7 +7,7 @@ from .dataqueue import data_received as inbox
 from .dataqueue import data_to_response as outbox
 from .frame import CommandError
 from .frame import Frame
-from .parser import FrameParser
+from .parsers import FrameParser
 
 
 async def task_received_order():

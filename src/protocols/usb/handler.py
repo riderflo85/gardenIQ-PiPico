@@ -1,11 +1,15 @@
 from src.__version__ import __version__
 from src.__version__ import micropython_version
 from src.core import DEVICE_UID
+from src.core import command_store
+from src.core.models import ModelType
 
 from .frame import CommandState
 from .frame import Frame
 from .frame import FrameType
-from .parser import FrameParser
+from .parsers import FrameParser
+from .parsers import parse_str_arg_to_model
+from .parsers import parse_str_order_to_model
 
 
 class FrameHandler:
@@ -29,7 +33,7 @@ class FrameHandler:
         if frame.is_ping_order():
             return self._handle_ping_order()
         elif frame.is_init_order():
-            return self._handle_init_order()
+            return self._handle_init_order(frame)
         elif frame.is_command_order():
             return self._handle_command_order()
         else:
@@ -58,8 +62,32 @@ class FrameHandler:
         """
         # TODO: Finish this method when the command store are available.
 
-    def _handle_init_order(self) -> None:
+    def _handle_init_order(self, frame: Frame) -> str:
         """Complete or update a initial command registry."""
+        if frame.model == ModelType.ARGUMENT:
+            self.__create_or_update_argument(frame)
+        elif frame.model == ModelType.ORDER:
+            self.__create_or_update_order(frame)
+        else:
+            raise ValueError(f"Model `{frame.model}` is not supported !")
+        frame_obj = Frame(
+            frame_type=FrameType.ACK,
+            device_uid=DEVICE_UID,
+            command_id=frame.command_id,
+            command_state=CommandState.OK,
+        )
+        frame_response = FrameParser.parse_from_frame_klass(frame_obj)
+        return frame_response
+
+    def __create_or_update_argument(self, frame: Frame):
+        """create or update argument in command_store"""
+        arg_obj = parse_str_arg_to_model(frame.model_attrs_values)
+        command_store.add_arg(arg_obj)
+
+    def __create_or_update_order(self, frame: Frame):
+        """create or update order in command_store"""
+        order_obj = parse_str_order_to_model(frame.model_attrs_values)
+        command_store.add_order(order_obj)
 
 
 # Create a singleton of FrameHandler

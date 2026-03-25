@@ -1,12 +1,12 @@
 import pytest
 
+from src.core.models import ModelType
 from src.protocols.errors import CommandError
 from src.protocols.errors import FrameParsingError
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
-from src.protocols.usb.frame import ModelType
-from src.protocols.usb.parser import FrameParser
+from src.protocols.usb.parsers import FrameParser
 
 
 class TestFrameParserParseFromMaster:

@@ -1,10 +1,10 @@
+from src.core.models import ModelType
 from src.protocols.errors import FrameParsingError
 from src.protocols.settings import ETX
 from src.protocols.settings import STX
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
-from src.protocols.usb.frame import ModelType
 
 
 class FrameParser:
