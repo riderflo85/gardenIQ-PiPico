@@ -308,10 +308,12 @@ class TestRunner:
     async def test_creates_exactly_three_tasks(self, mocker):
         """Verify that runner creates exactly three asyncio tasks."""
         # GIVEN: Mocked create_task and task functions
+        # Use MagicMock (not AsyncMock) to avoid unawaited coroutine warnings
+        # when the returned values are passed to the mocked create_task.
         mock_create_task = mocker.patch("src.protocols.usb.workflow.asyncio.create_task")
-        mocker.patch("src.protocols.usb.workflow.task_received_order")
-        mocker.patch("src.protocols.usb.workflow.task_process_order")
-        mocker.patch("src.protocols.usb.workflow.task_response_to_master")
+        mocker.patch("src.protocols.usb.workflow.task_received_order", mocker.MagicMock())
+        mocker.patch("src.protocols.usb.workflow.task_process_order", mocker.MagicMock())
+        mocker.patch("src.protocols.usb.workflow.task_response_to_master", mocker.MagicMock())
 
         # WHEN: Running the runner
         await runner()
