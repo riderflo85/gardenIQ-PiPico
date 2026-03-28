@@ -19,6 +19,36 @@ class QueueFull(Exception):
 
 
 class Queue:
+    """
+    An asynchronous queue implementation using asyncio Events and collections.deque.
+    This queue provides both async and non-blocking methods for putting and getting items.
+    It supports task synchronization through join() to wait for all queued tasks to complete.
+
+    Attributes:
+        maxsize (int): Maximum number of items the queue can hold. If 0, the queue is unbounded.
+        _queue (deque): Internal deque storing queue items with a maximum length.
+        _evput (asyncio.Event): Event triggered when an item is put into the queue.
+        _evget (asyncio.Event): Event triggered when an item is removed from the queue.
+        _jncnt (int): Counter tracking the number of unprocessed tasks in the queue.
+        _jnevt (asyncio.Event): Event used to signal when all tasks have been processed (join counter <= 0).
+
+    Methods:
+        get(): Asynchronously retrieve and remove an item from the queue. Waits if queue is empty.
+        get_nowait(): Non-blocking retrieval. Raises QueueEmpty if queue is empty.
+        put(val): Asynchronously add an item to the queue. Waits if queue is full.
+        put_nowait(val): Non-blocking insertion. Raises QueueFull if queue is full.
+        qsize(): Return the current number of items in the queue.
+        empty(): Return True if the queue contains no items.
+        full(): Return True if the queue has reached maxsize capacity.
+        task_done(): Decrement the join counter. Call after processing a queued task.
+        join(): Asynchronously wait until all queued tasks have been marked as done.
+
+    Raises:
+        QueueEmpty: Raised by get_nowait() when attempting to get from an empty queue.
+        QueueFull: Raised by put_nowait() when attempting to put into a full queue.
+        Exception: Raised by task_done() if called more times than items were put in the queue.
+    """
+
     def __init__(self, maxsize: int):
         self.maxsize = maxsize
         self._queue = deque(maxlen=self.maxsize)

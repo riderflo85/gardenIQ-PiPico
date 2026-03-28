@@ -5,6 +5,30 @@ from src.core.models import Order
 
 
 class CommandStore:
+    """
+    A store for managing Command arguments and orders.
+    This class provides a centralized repository for storing and retrieving Argument
+    and Order objects using their primary keys (pk) as identifiers.
+
+    Attributes:
+        _args (Dict[int, Argument]): Internal dictionary storing Argument objects
+            indexed by their argument ID.
+        _orders (Dict[int, Order]): Internal dictionary storing Order objects
+            indexed by their order ID.
+
+    Methods:
+        get_arg(arg_id): Retrieve an Argument by its ID.
+        get_order(order_id): Retrieve an Order by its ID.
+        remove_arg(arg_id): Remove an Argument from the store.
+        remove_order(order_id): Remove an Order from the store.
+        add_arg(arg_obj): Add an Argument to the store.
+        add_order(order_obj): Add an Order to the store.
+
+    Raises:
+        KeyError: When attempting to retrieve an Argument or Order that does not exist
+            in the store.
+    """
+
     _args: Dict[int, Argument] = {}  # {arg_id: arg_obj}
     _orders: Dict[int, Order] = {}  # {order_id: order_obj}
 
