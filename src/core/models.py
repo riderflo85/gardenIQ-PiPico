@@ -19,6 +19,16 @@ def cast_relation_attr(relation: str) -> tuple[int, ...]:
     return tuple(ids)
 
 
+def str_to_bool(value: str) -> bool:
+    """Convert a string to a boolean value."""
+    if value in ("True", "true"):
+        return True
+    elif value in ("False", "false"):
+        return False
+    else:
+        raise ValueError(f"Cannot convert '{value}' to bool. Expected 'True' or 'False'.")
+
+
 class ModelType(PseudoEnum):
     """Model types for frame commands."""
 
@@ -31,8 +41,8 @@ class Argument:
         ("pk", int),
         ("slug", str),
         ("value_type", str),
-        ("required", bool),
-        ("is_option", bool),
+        ("required", str_to_bool),
+        ("is_option", str_to_bool),
     )
 
     def __init__(self, pk: int, slug: str, value_type: str, required: bool, is_option: bool) -> None:
