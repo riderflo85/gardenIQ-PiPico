@@ -2,6 +2,7 @@ from typing import Callable
 from typing import Literal
 
 from src.core.enum import PseudoEnum
+from src.datasheet import BusType
 
 AVAILABLE_RELATIONS = ("arguments",)
 
@@ -47,11 +48,46 @@ def str_to_bool(value: str) -> bool:
         raise ValueError(f"Cannot convert '{value}' to bool. Expected 'True' or 'False'.")
 
 
+def int_or_none(value: str) -> int | None:
+    """Convert a string to an integer or None."""
+    if value.lower() in ("none", "null"):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"Cannot convert '{value}' to int or None. Expected an integer or 'None'.")
+
+
 class ModelType(PseudoEnum):
     """Model types for frame commands."""
 
     ARGUMENT = "Argument"
     ORDER = "Order"
+    PIN = "Pin"
+
+
+class Pin:
+    """
+    Represents a physical pin on the device.
+    This class defines the structure and properties of a pin, including its pk, bus_choiced and
+    associated physical pin numbers.
+
+    Attributes:
+        pk (int): Primary key identifier for the pin.
+        bus_choiced (str): The type of bus the pin is associated with (e.g., "I2C", "SPI").
+        pin (int): A integer representing the physical pin number associated with this pin.
+    """
+
+    fields_cfg: tuple[tuple[str, Callable], ...] = (
+        ("pk", int),
+        ("bus_choiced", BusType.check_value),
+        ("pin", int),
+    )
+
+    def __init__(self, pk: int, bus_choiced: str, pin: int) -> None:
+        self.pk = pk
+        self.bus_choiced = bus_choiced
+        self.pin = pin
 
 
 class Argument:
@@ -65,8 +101,9 @@ class Argument:
         pk (int): Primary key identifier for the argument.
         slug (str): Unique slug identifier for the argument.
         value_type (str): The expected type of the argument value.
-        required (bool): Whether this argument is required for command execution.
-        is_option (bool): Whether this argument is an optional flag/option.
+        value_for_pin (bool): Whether this argument is intended for a pin.
+        value_for_obj (bool): Whether this argument is intended for an object.
+        is_logical_value (bool): Whether this argument represents a logical value.
         fields_cfg (tuple[tuple[str, Callable], ...]): Configuration mapping field names
             to their respective type conversion functions for deserialization.
     """
@@ -75,16 +112,26 @@ class Argument:
         ("pk", int),
         ("slug", str),
         ("value_type", str),
-        ("required", str_to_bool),
-        ("is_option", str_to_bool),
+        ("value_for_pin", str_to_bool),
+        ("value_for_obj", str_to_bool),
+        ("is_logical_value", str_to_bool),
     )
 
-    def __init__(self, pk: int, slug: str, value_type: str, required: bool, is_option: bool) -> None:
+    def __init__(
+        self,
+        pk: int,
+        slug: str,
+        value_type: str,
+        value_for_pin: bool,
+        value_for_obj: bool,
+        is_logical_value: bool,
+    ) -> None:
         self.pk = pk
         self.slug = slug
         self.value_type = value_type
-        self.required = required
-        self.is_option = is_option
+        self.value_for_pin = value_for_pin
+        self.value_for_obj = value_for_obj
+        self.is_logical_value = is_logical_value
 
 
 class Order:
