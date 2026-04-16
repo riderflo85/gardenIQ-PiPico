@@ -6,7 +6,7 @@ def parse_str_order_to_model(fields_values: tuple[str, ...]) -> Order:
     Parse a tuple of string values into an Order model instance.
     This function converts a tuple of string values into an Order object by matching
     each value to the corresponding field defined in Order.fields_cfg.
-    String values wrapped in curly braces (e.g., "{arguments}") are sanitized by removing the braces.
+    String values wrapped in curly braces (e.g., "{model_relations}") are sanitized by removing the braces.
     Non-string field values are cast to their specified type.
 
     Args:
@@ -18,13 +18,13 @@ def parse_str_order_to_model(fields_values: tuple[str, ...]) -> Order:
         Order: An Order instance populated with the parsed and cast field values.
 
     Example:
-        >>> fields_values = ('1', 'get_temp', 'get', '{arguments:1,2}')
+        >>> fields_values = ('1', 'get_temp', 'get', '{model_relations:1,2}')
         >>> order = parse_str_order_to_model(fields_values)
         >>> # Assumes Order.fields_cfg defines pk (int), slug (str), etc.
         >>> order.pk
         1
-        >>> order.arguments
-        'arguments:1,2'
+        >>> order.model_relations
+        'model_relations:1,2'
 
     Raises:
         ValueError: If a cast operation fails or field count doesn't match Order.fields_cfg.

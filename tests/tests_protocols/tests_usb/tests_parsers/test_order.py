@@ -11,8 +11,8 @@ from src.protocols.usb.parsers.order import parse_str_order_to_model
 @pytest.fixture
 def valid_str_fields():
     """Fixture providing a valid tuple of string values matching Order.fields_cfg order."""
-    # pk, slug, action_type, arguments (with braces)
-    return ("1", "get_temp", "get", "{arguments:1,2}")
+    # pk, slug, action_type
+    return ("1", "get_temp", "get")
 
 
 @pytest.fixture
@@ -68,24 +68,6 @@ class TestParseStrOrderToModel:
         assert parsed_order.action_type == "get"
         assert isinstance(parsed_order.action_type, str)
 
-    def test_arguments_parsed_from_braces(self, parsed_order):
-        """Test that the arguments field is parsed and braces are stripped."""
-        # GIVEN valid string field values with arguments='{arguments:1,2}' (fixture)
-
-        # WHEN the order is parsed (fixture)
-
-        # THEN arguments is a tuple of ints with braces removed
-        assert parsed_order.arguments == (1, 2)
-
-    def test_arguments_is_tuple(self, parsed_order):
-        """Test that the arguments field is stored as a tuple."""
-        # GIVEN valid string field values (fixture)
-
-        # WHEN the order is parsed (fixture)
-
-        # THEN arguments is a tuple
-        assert isinstance(parsed_order.arguments, tuple)
-
     def test_all_fields_are_set(self, parsed_order):
         """Test that every field declared in fields_cfg is present on the result."""
         # GIVEN valid string field values (fixture)
@@ -99,48 +81,13 @@ class TestParseStrOrderToModel:
     def test_action_type_set(self):
         """Test parsing an order with action_type 'set'."""
         # GIVEN string field values with action_type='set'
-        fields = ("5", "set_valve", "set", "{arguments:3}")
+        fields = ("5", "set_valve", "set")
 
         # WHEN we parse them
         result = parse_str_order_to_model(fields)
 
-        # THEN action_type is 'set' and arguments are correct
+        # THEN action_type is 'set'
         assert result.action_type == "set"
-        assert result.arguments == (3,)
-
-    def test_multiple_arguments(self):
-        """Test parsing an order with many argument ids."""
-        # GIVEN string field values with several argument ids
-        fields = ("2", "read_all", "get", "{arguments:10,20,30,40}")
-
-        # WHEN we parse them
-        result = parse_str_order_to_model(fields)
-
-        # THEN all argument ids are present
-        assert result.arguments == (10, 20, 30, 40)
-
-    def test_sanitize_removes_braces(self):
-        """Test that braces are stripped from the relation field before casting."""
-        # GIVEN a field value wrapped in braces
-        fields = ("1", "cmd", "get", "{arguments:7}")
-
-        # WHEN we parse them
-        result = parse_str_order_to_model(fields)
-
-        # THEN the braces are removed and the value is correctly parsed
-        assert result.arguments == (7,)
-
-    def test_field_without_braces_is_kept(self):
-        """Test that non-brace fields are not altered by sanitize."""
-        # GIVEN field values where no field has braces
-        fields = ("3", "my_slug", "get", "arguments:5")
-
-        # WHEN we parse them
-        result = parse_str_order_to_model(fields)
-
-        # THEN the relation field is still correctly parsed
-        assert result.arguments == (5,)
-        assert result.slug == "my_slug"
 
     def test_fields_count_must_match_cfg(self):
         """Test that providing fewer values than fields_cfg raises an IndexError."""
@@ -154,7 +101,7 @@ class TestParseStrOrderToModel:
     def test_non_numeric_pk_raises_value_error(self):
         """Test that a non-numeric pk string raises ValueError during casting."""
         # GIVEN string field values where pk is not a valid int
-        bad_fields = ("abc", "slug", "get", "{arguments:1}")
+        bad_fields = ("abc", "slug", "get")
 
         # WHEN / THEN a ValueError is raised
         with pytest.raises(ValueError):

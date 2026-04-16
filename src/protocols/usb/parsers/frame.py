@@ -55,6 +55,7 @@ class FrameParser:
         # Minimum valid frame has 6 parts: STX, frame_type, device_uid, command_id, command_state, ETX, checksum
         # E.G: parts = "< PING device123 0 > 3C"
         # OR: parts = "< PING UKW_DEV_UID 0 > 3C" UKW is UNKNOWN
+        # OR: parts = "< CMD device123 12 get_temp_zone_A > 5A"
         if len(parts) < 6:
             raise FrameParsingError(
                 f"The received string is too short. Warning: the system may be infected. recv: {recv_str}"
@@ -79,7 +80,6 @@ class FrameParser:
         device_uid = parts[2]
         command_id = int(parts[3])
         command_slug = None
-        args_values = ()
         model = None
         model_fields_values = ()
 
@@ -90,9 +90,6 @@ class FrameParser:
             model_fields_values = tuple(parts[5].split(";"))
         elif command_id > 0:
             command_slug = parts[4]
-            args = parts[5]
-            if len(parts) > 6 and ("," in args or args != ">"):
-                args_values = tuple(args.split(","))
         # command_id == 0 is a ping command, so no args
 
         return Frame(
@@ -103,7 +100,6 @@ class FrameParser:
             model=model,
             model_attrs_values=model_fields_values,
             command_slug=command_slug,
-            args_values=args_values,
             checksum=checksum,
             source_frame_from_master=recv_str_without_cs,
         )

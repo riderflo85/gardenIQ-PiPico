@@ -35,7 +35,6 @@ class Frame:
         "device_uid",
         "command_id",
         "command_slug",
-        "args_values",
         "from_master",
         "model",
         "model_attrs_values",
@@ -58,7 +57,6 @@ class Frame:
         model_attrs_values: tuple[str, ...] = (),  # It's a fields values of Django model backend service
         command_slug: str | None = None,
         command_state: CommandState | str | None = None,  # State of the command on this device
-        args_values: tuple[str, ...] = (),  # Arguments values for the command when from master
         ok_data: str | None = None,  # Data send to master service when command sended is OK state
         err_msg: CommandError | str | None = None,  # Error message if cmd_state is ERROR
         gd_fw_version: str | None = None,  # GardenIQ Firmware Version
@@ -71,7 +69,6 @@ class Frame:
         self.device_uid = device_uid
         self.command_id = command_id
         self.command_slug = command_slug
-        self.args_values = args_values
         self.from_master = from_master
         self.model = model
         self.model_attrs_values = model_attrs_values
