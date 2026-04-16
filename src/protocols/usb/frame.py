@@ -1,4 +1,5 @@
 from src.core.enum import PseudoEnum
+from src.core.models import ModelType
 from src.protocols.errors import CommandError
 from src.protocols.settings import pattern_strict_version
 
@@ -17,13 +18,6 @@ class FrameType(PseudoEnum):
     PING = "PING"
     ACK = "ACK"
     LG_INIT = "LG_INIT"
-
-
-class ModelType(PseudoEnum):
-    """Model types for frame commands."""
-
-    ARGUMENT = "Argument"
-    ORDER = "Order"
 
 
 class CommandState(PseudoEnum):

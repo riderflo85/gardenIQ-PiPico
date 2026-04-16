@@ -1,10 +1,10 @@
+from src.core.models import ModelType
 from src.protocols.errors import FrameParsingError
 from src.protocols.settings import ETX
 from src.protocols.settings import STX
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
-from src.protocols.usb.frame import ModelType
 
 
 class FrameParser:
@@ -47,10 +47,14 @@ class FrameParser:
             raise FrameParsingError("The received string does not end with a newline character. It's invalid frame !")
 
         recv_str = recv_str.removesuffix("\n")
+        # Remove the checksum part for storing in Frame.source_frame_from_master
+        recv_str_without_cs = recv_str.rsplit(" ", 1)[0]
+
         parts = recv_str.split(" ")
 
         # Minimum valid frame has 6 parts: STX, frame_type, device_uid, command_id, command_state, ETX, checksum
         # E.G: parts = "< PING device123 0 > 3C"
+        # OR: parts = "< PING UKW_DEV_UID 0 > 3C" UKW is UNKNOWN
         if len(parts) < 6:
             raise FrameParsingError(
                 f"The received string is too short. Warning: the system may be infected. recv: {recv_str}"
@@ -101,7 +105,7 @@ class FrameParser:
             command_slug=command_slug,
             args_values=args_values,
             checksum=checksum,
-            source_frame_from_master=recv_str,
+            source_frame_from_master=recv_str_without_cs,
         )
 
     @staticmethod
