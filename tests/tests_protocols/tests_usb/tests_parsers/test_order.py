@@ -11,8 +11,8 @@ from src.protocols.usb.parsers.order import parse_str_order_to_model
 @pytest.fixture
 def valid_str_fields():
     """Fixture providing a valid tuple of string values matching Order.fields_cfg order."""
-    # pk, slug, action_type
-    return ("1", "get_temp", "get")
+    # pk, slug, action_type, sensor, controller, is_toggle_ctrl_value, ctrl_value
+    return ("1", "get_temp", "get", "5", "-1", "False", "")
 
 
 @pytest.fixture
@@ -78,10 +78,50 @@ class TestParseStrOrderToModel:
         for field_name, _ in Order.fields_cfg:
             assert hasattr(parsed_order, field_name)
 
+    def test_sensor_is_cast_to_int(self, parsed_order):
+        """Test that the sensor field is correctly cast from str to int."""
+        # GIVEN valid string field values with sensor='5' (fixture)
+
+        # WHEN the order is parsed (fixture)
+
+        # THEN sensor is an int with the expected value
+        assert parsed_order.sensor == 5
+        assert isinstance(parsed_order.sensor, int)
+
+    def test_controller_is_cast_to_int(self, parsed_order):
+        """Test that the controller field is correctly cast from str to int."""
+        # GIVEN valid string field values with controller='-1' (fixture)
+
+        # WHEN the order is parsed (fixture)
+
+        # THEN controller is an int with the expected value
+        assert parsed_order.controller == -1
+        assert isinstance(parsed_order.controller, int)
+
+    def test_is_toggle_ctrl_value_is_cast_to_bool(self, parsed_order):
+        """Test that is_toggle_ctrl_value is correctly cast from str to bool."""
+        # GIVEN valid string field values with is_toggle_ctrl_value='False' (fixture)
+
+        # WHEN the order is parsed (fixture)
+
+        # THEN is_toggle_ctrl_value is a bool with the expected value
+        assert parsed_order.is_toggle_ctrl_value is False
+        assert isinstance(parsed_order.is_toggle_ctrl_value, bool)
+
+    def test_ctrl_value_remains_str(self, parsed_order):
+        """Test that the ctrl_value field stays as a string."""
+        # GIVEN valid string field values with ctrl_value='' (fixture)
+
+        # WHEN the order is parsed (fixture)
+
+        # THEN ctrl_value is the original string
+        assert parsed_order.ctrl_value == ""
+        assert isinstance(parsed_order.ctrl_value, str)
+
     def test_action_type_set(self):
         """Test parsing an order with action_type 'set'."""
         # GIVEN string field values with action_type='set'
-        fields = ("5", "set_valve", "set")
+        fields = ("5", "set_valve", "set", "-1", "3", "False", "on")
 
         # WHEN we parse them
         result = parse_str_order_to_model(fields)
@@ -101,17 +141,26 @@ class TestParseStrOrderToModel:
     def test_non_numeric_pk_raises_value_error(self):
         """Test that a non-numeric pk string raises ValueError during casting."""
         # GIVEN string field values where pk is not a valid int
-        bad_fields = ("abc", "slug", "get")
+        bad_fields = ("abc", "slug", "get", "5", "-1", "False", "")
 
         # WHEN / THEN a ValueError is raised
         with pytest.raises(ValueError):
             parse_str_order_to_model(bad_fields)
 
-    def test_invalid_relation_name_raises_value_error(self):
-        """Test that an invalid relation name raises ValueError."""
-        # GIVEN a relation field with an unknown relation name
-        bad_fields = ("1", "slug", "get", "{unknown:1,2}")
+    def test_non_numeric_sensor_raises_value_error(self):
+        """Test that a non-numeric sensor string raises ValueError during casting."""
+        # GIVEN string field values where sensor is not a valid int
+        bad_fields = ("1", "slug", "get", "abc", "-1", "False", "")
 
         # WHEN / THEN a ValueError is raised
-        with pytest.raises(ValueError, match="relation `unknown` is not valid"):
+        with pytest.raises(ValueError):
+            parse_str_order_to_model(bad_fields)
+
+    def test_invalid_bool_raises_value_error(self):
+        """Test that an invalid boolean string raises ValueError during casting."""
+        # GIVEN string field values where is_toggle_ctrl_value is not a valid bool
+        bad_fields = ("1", "slug", "get", "5", "-1", "yes", "")
+
+        # WHEN / THEN a ValueError is raised
+        with pytest.raises(ValueError):
             parse_str_order_to_model(bad_fields)

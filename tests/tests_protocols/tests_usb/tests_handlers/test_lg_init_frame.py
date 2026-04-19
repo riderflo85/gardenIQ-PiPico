@@ -48,7 +48,7 @@ def build_lg_init_frame_str(device_uid: str, model: str, fields: str) -> str:
 # ---------------------------------------------------------------------------
 
 ORDER_MODEL_NAME = "order"
-ORDER_FIELDS = "1;get_temp;get"
+ORDER_FIELDS = "1;get_temp;get;5;-1;False;"
 
 
 # ---------------------------------------------------------------------------
@@ -157,11 +157,11 @@ class TestLgInitOrderParsing:
 
     def test_parsed_model_attrs_values(self, parsed_order_frame):
         """Test that model attribute values are correctly split from semicolons."""
-        # GIVEN a parsed LG_INIT Order frame with fields "1;get_temp;get"
+        # GIVEN a parsed LG_INIT Order frame with fields "1;get_temp;get;5;-1;False;"
 
         # WHEN we check model_attrs_values
         # THEN the tuple contains each field as a separate string
-        assert parsed_order_frame.model_attrs_values == ("1", "get_temp", "get")
+        assert parsed_order_frame.model_attrs_values == ("1", "get_temp", "get", "5", "-1", "False", "")
 
     def test_is_init_order_returns_true(self, parsed_order_frame):
         """Test that is_init_order() returns True for a LG_INIT frame."""
@@ -304,6 +304,50 @@ class TestLgInitOrderHandler:
         # THEN action_type is 'get'
         assert order.action_type == "get"
 
+    def test_stored_order_has_correct_sensor(self, handler, parsed_order_frame):
+        """Test that the stored Order has the expected sensor pin."""
+        # GIVEN a handler processing a LG_INIT Order frame with sensor=5
+        handler.handle_master_command(parsed_order_frame)
+
+        # WHEN we retrieve the order
+        order = command_store.get_order(1)
+
+        # THEN sensor is 5
+        assert order.sensor == 5
+
+    def test_stored_order_has_correct_controller(self, handler, parsed_order_frame):
+        """Test that the stored Order has the expected controller pin."""
+        # GIVEN a handler processing a LG_INIT Order frame with controller=-1
+        handler.handle_master_command(parsed_order_frame)
+
+        # WHEN we retrieve the order
+        order = command_store.get_order(1)
+
+        # THEN controller is -1
+        assert order.controller == -1
+
+    def test_stored_order_has_correct_is_toggle_ctrl_value(self, handler, parsed_order_frame):
+        """Test that the stored Order has the expected is_toggle_ctrl_value."""
+        # GIVEN a handler processing a LG_INIT Order frame with is_toggle_ctrl_value=False
+        handler.handle_master_command(parsed_order_frame)
+
+        # WHEN we retrieve the order
+        order = command_store.get_order(1)
+
+        # THEN is_toggle_ctrl_value is False
+        assert order.is_toggle_ctrl_value is False
+
+    def test_stored_order_has_correct_ctrl_value(self, handler, parsed_order_frame):
+        """Test that the stored Order has the expected ctrl_value."""
+        # GIVEN a handler processing a LG_INIT Order frame with ctrl_value=''
+        handler.handle_master_command(parsed_order_frame)
+
+        # WHEN we retrieve the order
+        order = command_store.get_order(1)
+
+        # THEN ctrl_value is ''
+        assert order.ctrl_value == ""
+
 
 # ---------------------------------------------------------------------------
 # Tests – Handler error cases
@@ -326,7 +370,7 @@ class TestLgInitHandlerErrors:
     def test_invalid_checksum_raises_value_error(self, handler):
         """Test that a LG_INIT frame with a tampered checksum raises ValueError."""
         # GIVEN a LG_INIT frame with a deliberately wrong checksum
-        frame_without_cs = f"{STX} LG_INIT {DEVICE_UID} -1 order 1;get_temp;get {ETX}"
+        frame_without_cs = f"{STX} LG_INIT {DEVICE_UID} -1 order 1;get_temp;get;5;-1;False; {ETX}"
         bad_frame_str = f"{frame_without_cs} FF\n"
         frame = FrameParser.parse_from_master(bad_frame_str)
 
@@ -351,7 +395,7 @@ class TestLgInitHandlerErrors:
         """Test that a LG_INIT frame with an unsupported model raises ValueError."""
         # GIVEN a LG_INIT frame with a valid model name
         # We build the frame manually to bypass from_string validation
-        frame_without_cs = f"{STX} LG_INIT {DEVICE_UID} -1 order 1;get_temp;get {ETX}"
+        frame_without_cs = f"{STX} LG_INIT {DEVICE_UID} -1 order 1;get_temp;get;5;-1;False; {ETX}"
         checksum = Frame.build_checksum(frame_without_cs.encode())
         raw_frame = f"{frame_without_cs} {checksum:02X}\n"
         frame = FrameParser.parse_from_master(raw_frame)
@@ -366,7 +410,7 @@ class TestLgInitHandlerErrors:
     def test_order_not_stored_when_checksum_fails(self, handler):
         """Test that a failed checksum prevents Order from being stored."""
         # GIVEN a LG_INIT Order frame with a bad checksum
-        frame_without_cs = f"{STX} LG_INIT {DEVICE_UID} -1 order 1;get_temp;get {ETX}"
+        frame_without_cs = f"{STX} LG_INIT {DEVICE_UID} -1 order 1;get_temp;get;5;-1;False; {ETX}"
         bad_frame_str = f"{frame_without_cs} FF\n"
         frame = FrameParser.parse_from_master(bad_frame_str)
 
