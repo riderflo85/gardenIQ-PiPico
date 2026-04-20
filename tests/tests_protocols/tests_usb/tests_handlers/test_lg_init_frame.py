@@ -22,8 +22,7 @@ from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
 from src.protocols.usb.handler import FrameHandler
 from src.protocols.usb.parsers import FrameParser
-from src.stores import commands_store
-from src.stores import init_pins_store
+from src.stores import command_store
 
 # ---------------------------------------------------------------------------
 # Helpers
