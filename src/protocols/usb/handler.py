@@ -2,7 +2,7 @@ from src.__version__ import __version__
 from src.__version__ import micropython_version
 from src.core import DEVICE_UID
 from src.core import command_store
-from src.core.models import ModelType
+from src.models import ModelType
 
 from .frame import CommandState
 from .frame import Frame

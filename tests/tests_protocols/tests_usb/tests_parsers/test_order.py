@@ -1,6 +1,6 @@
 import pytest
 
-from src.core.models import Order
+from src.models import Order
 from src.protocols.usb.parsers.order import parse_str_order_to_model
 
 # ---------------------------------------------------------------------------

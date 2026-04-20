@@ -6,8 +6,8 @@ import pytest
 from src.core import DEVICE_UID
 from src.core import command_store
 from src.core import event_emitter
-from src.core.models import ModelType
-from src.core.models import Order
+from src.models import ModelType
+from src.models import Order
 from src.protocols.settings import ETX
 from src.protocols.settings import STX
 from src.protocols.usb.callback import cb_register

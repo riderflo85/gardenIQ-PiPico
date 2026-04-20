@@ -1,6 +1,6 @@
 import pytest
 
-from src.core.models import ModelType
+from src.models import ModelType
 from src.protocols.errors import CommandError
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame

@@ -1,6 +1,6 @@
 from typing import Dict
 
-from src.core.models import Order
+from src.models import Order
 
 
 class CommandStore:

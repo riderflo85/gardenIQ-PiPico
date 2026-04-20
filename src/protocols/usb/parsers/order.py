@@ -1,4 +1,4 @@
-from src.core.models import Order
+from src.models import Order
 
 
 def parse_str_order_to_model(fields_values: tuple[str, ...]) -> Order:

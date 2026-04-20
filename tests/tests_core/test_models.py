@@ -1,8 +1,8 @@
 import pytest
 
-from src.core.models import ModelType
-from src.core.models import Order
-from src.core.models import str_to_bool
+from src.core.utils import str_to_bool
+from src.models import ModelType
+from src.models import Order
 
 # ---------------------------------------------------------------------------
 # Fixtures
