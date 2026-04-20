@@ -1,9 +1,8 @@
 from src.__version__ import __version__
 from src.__version__ import micropython_version
 from src.core import DEVICE_UID
+from src.core import command_store
 from src.models import ModelType
-from src.stores import commands_store
-from src.stores import init_pins_store
 
 from .frame import CommandState
 from .frame import Frame
