@@ -4,7 +4,6 @@
 import pytest
 
 from src.core import DEVICE_UID
-from src.core import command_store
 from src.core import event_emitter
 from src.models import ModelType
 from src.models import Order
@@ -21,6 +20,7 @@ from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
 from src.protocols.usb.handler import FrameHandler
 from src.protocols.usb.parsers import FrameParser
+from src.stores import command_store
 
 # ---------------------------------------------------------------------------
 # Helpers
