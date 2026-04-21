@@ -16,7 +16,6 @@ def basic_command_frame_data():
         "device_uid": "DEV123",
         "command_id": 1,
         "command_slug": "test_command",
-        "args_values": ["arg1", "arg2"],
     }
 
 
@@ -31,7 +30,6 @@ def master_frame_data():
         "device_uid": "DEV456",
         "command_id": 2,
         "command_slug": "master_command",
-        "args_values": ["value1"],
         "from_master": True,
         "checksum": checksum_hex,
         "source_frame_from_master": source_data,
@@ -46,7 +44,6 @@ def ack_frame_data():
         "device_uid": "DEV789",
         "command_id": 3,
         "command_slug": "ack_command",
-        "args_values": [],
         "command_state": CommandState.OK,
         "ok_data": "Success",
     }
@@ -60,7 +57,6 @@ def error_frame_data():
         "device_uid": "DEV999",
         "command_id": 4,
         "command_slug": "error_command",
-        "args_values": [],
         "command_state": CommandState.ERROR,
         "err_msg": CommandError.INVALID_PARAM,
     }
@@ -74,7 +70,6 @@ def ping_frame_data():
         "device_uid": "DEV111",
         "command_id": 0,
         "command_slug": "ping",
-        "args_values": [],
         "gd_fw_version": "1.0.0",
         "mp_fw_version": "1.20.0",
     }
@@ -91,7 +86,6 @@ def ping_order_frame_data():
         "device_uid": "DEV222",
         "command_id": 0,
         "command_slug": "ping",
-        "args_values": [],
         "from_master": True,
         "checksum": checksum_hex,
         "source_frame_from_master": source_data,
@@ -109,7 +103,6 @@ def lg_init_frame_data():
         "device_uid": "DEV333",
         "command_id": -1,
         "command_slug": None,
-        "args_values": None,
         "from_master": True,
         "model": ModelType.ORDER,
         "model_attrs_values": ("language", "fr"),
@@ -179,16 +172,6 @@ class TestFrameType:
 class TestModelType:
     """Tests for the ModelType enum."""
 
-    def test_model_type_has_argument(self):
-        """Test that ModelType has ARGUMENT value."""
-        # GIVEN: The ModelType enum
-
-        # WHEN: We access the ARGUMENT attribute
-        argument_type = ModelType.ARGUMENT
-
-        # THEN: It should equal "Argument"
-        assert argument_type == "Argument"
-
     def test_model_type_has_order(self):
         """Test that ModelType has ORDER value."""
         # GIVEN: The ModelType enum
@@ -207,9 +190,8 @@ class TestModelType:
         values = list(ModelType)
 
         # THEN: It should contain all model types
-        assert "Argument" in values
         assert "Order" in values
-        assert len(values) == 2
+        assert len(values) == 1
 
 
 class TestCommandState:
@@ -263,7 +245,6 @@ class TestFrameInitialization:
         assert frame.device_uid == "DEV123"
         assert frame.command_id == 1
         assert frame.command_slug == "test_command"
-        assert frame.args_values == ["arg1", "arg2"]
         assert frame.from_master is False
         assert frame.model is None
         assert frame.model_attrs_values == ()
@@ -279,7 +260,6 @@ class TestFrameInitialization:
             "device_uid": "DEV_FULL",
             "command_id": 10,
             "command_slug": "full_command",
-            "args_values": ["a", "b", "c"],
             "from_master": True,
             "command_state": CommandState.OK,
             "ok_data": "result_data",
@@ -298,7 +278,6 @@ class TestFrameInitialization:
         assert frame.device_uid == "DEV_FULL"
         assert frame.command_id == 10
         assert frame.command_slug == "full_command"
-        assert frame.args_values == ["a", "b", "c"]
         assert frame.from_master is True
         assert frame.command_state == CommandState.OK
         assert frame.ok_data == "result_data"
@@ -398,7 +377,6 @@ class TestFrameValidation:
             "device_uid": "DEV111",
             "command_id": 0,
             "command_slug": "ping",
-            "args_values": [],
             "mp_fw_version": "1.20.0",
         }
 
@@ -414,7 +392,6 @@ class TestFrameValidation:
             "device_uid": "DEV111",
             "command_id": 0,
             "command_slug": "ping",
-            "args_values": [],
             "gd_fw_version": "1.0.0",
         }
 
@@ -430,7 +407,6 @@ class TestFrameValidation:
             "device_uid": "DEV111",
             "command_id": 0,
             "command_slug": "ping",
-            "args_values": [],
             "gd_fw_version": "1.0",  # Invalid format (should be X.Y.Z)
             "mp_fw_version": "1.20.0",
         }
@@ -447,7 +423,6 @@ class TestFrameValidation:
             "device_uid": "DEV111",
             "command_id": 0,
             "command_slug": "ping",
-            "args_values": [],
             "gd_fw_version": "1.0.0",
             "mp_fw_version": "1.20.0.1",  # Invalid format (too many parts)
         }
@@ -480,13 +455,13 @@ class TestFrameValidation:
     def test_validation_passes_with_valid_model_type(self, basic_command_frame_data):
         """Test that validation passes with a valid model type."""
         # GIVEN: Frame data with valid model type
-        data = {**basic_command_frame_data, "model": ModelType.ARGUMENT}
+        data = {**basic_command_frame_data, "model": ModelType.ORDER}
 
         # WHEN: We create a Frame instance
         frame = Frame(**data)
 
         # THEN: The frame should be created successfully
-        assert frame.model == ModelType.ARGUMENT
+        assert frame.model == ModelType.ORDER
 
     def test_validation_fails_when_lg_init_from_master_without_model(self):
         """Test that validation fails for LG_INIT from master without model."""
@@ -622,7 +597,6 @@ class TestVerifyChecksum:
             "device_uid": "DEV001",
             "command_id": 1,
             "command_slug": "test",
-            "args_values": [],
             "from_master": True,
             "checksum": "A5",
             "source_frame_from_master": None,
@@ -640,7 +614,6 @@ class TestVerifyChecksum:
             "device_uid": "DEV002",
             "command_id": 1,
             "command_slug": "test",
-            "args_values": [],
             "from_master": True,
             "checksum": None,
             "source_frame_from_master": "test_data",
@@ -662,7 +635,6 @@ class TestVerifyChecksum:
             "device_uid": "DEV123",
             "command_id": 1,
             "command_slug": "test",
-            "args_values": ["arg"],
             "from_master": True,
             "checksum": checksum_hex,
             "source_frame_from_master": source_data,
@@ -686,7 +658,6 @@ class TestVerifyChecksum:
             "device_uid": "DEV123",
             "command_id": 1,
             "command_slug": "test",
-            "args_values": ["arg"],
             "from_master": True,
             "checksum": wrong_checksum,
             "source_frame_from_master": source_data,
@@ -711,7 +682,6 @@ class TestVerifyChecksum:
             "device_uid": "DEV999",
             "command_id": 0,
             "command_slug": "ping",
-            "args_values": [],
             "from_master": True,
             "checksum": checksum_hex,
             "source_frame_from_master": source_data,
@@ -796,7 +766,6 @@ class TestIsPingOrder:
             "device_uid": "DEV333",
             "command_id": 5,
             "command_slug": "ping",
-            "args_values": [],
             "from_master": True,
             "checksum": checksum_hex,
             "source_frame_from_master": source_data,
@@ -820,7 +789,6 @@ class TestIsPingOrder:
             "device_uid": "DEV444",
             "command_id": 0,
             "command_slug": "ack",
-            "args_values": [],
             "from_master": True,
             "checksum": checksum_hex,
             "source_frame_from_master": source_data,
@@ -953,7 +921,6 @@ class TestIsCommandOrder:
             "device_uid": "DEV555",
             "command_id": 0,
             "command_slug": "test",
-            "args_values": [],
             "from_master": True,
             "checksum": checksum_hex,
             "source_frame_from_master": source_data,
@@ -977,7 +944,6 @@ class TestIsCommandOrder:
             "device_uid": "DEV666",
             "command_id": 1,
             "command_slug": "ack",
-            "args_values": [],
             "from_master": True,
             "checksum": checksum_hex,
             "source_frame_from_master": source_data,
@@ -1004,7 +970,6 @@ class TestIsCommandOrder:
                 "device_uid": "DEV777",
                 "command_id": cmd_id,
                 "command_slug": "test",
-                "args_values": [],
                 "from_master": True,
                 "checksum": checksum_hex,
                 "source_frame_from_master": source_data,

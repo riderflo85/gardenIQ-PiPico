@@ -8,7 +8,6 @@ from .frame import CommandState
 from .frame import Frame
 from .frame import FrameType
 from .parsers import FrameParser
-from .parsers import parse_str_arg_to_model
 from .parsers import parse_str_order_to_model
 
 
@@ -64,10 +63,9 @@ class FrameHandler:
 
     def _handle_init_order(self, frame: Frame) -> str:
         """Complete or update a initial command registry."""
-        if frame.model == ModelType.ARGUMENT:
-            self.__create_or_update_argument(frame)
-        elif frame.model == ModelType.ORDER:
-            self.__create_or_update_order(frame)
+        if frame.model == ModelType.ORDER:
+            order_obj = parse_str_order_to_model(frame.model_attrs_values)
+            command_store.add_order(order_obj)
         else:
             raise ValueError(f"Model `{frame.model}` is not supported !")
         frame_obj = Frame(
@@ -78,16 +76,6 @@ class FrameHandler:
         )
         frame_response = FrameParser.parse_from_frame_klass(frame_obj)
         return frame_response
-
-    def __create_or_update_argument(self, frame: Frame):
-        """create or update argument in command_store"""
-        arg_obj = parse_str_arg_to_model(frame.model_attrs_values)
-        command_store.add_arg(arg_obj)
-
-    def __create_or_update_order(self, frame: Frame):
-        """create or update order in command_store"""
-        order_obj = parse_str_order_to_model(frame.model_attrs_values)
-        command_store.add_order(order_obj)
 
 
 # Create a singleton of FrameHandler

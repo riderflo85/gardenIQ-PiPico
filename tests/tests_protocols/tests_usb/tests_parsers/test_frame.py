@@ -19,19 +19,9 @@ class TestFrameParserParseFromMaster:
         return "< PING device123 0 > 3C\n"
 
     @pytest.fixture
-    def valid_command_frame_no_args(self):
-        """Valid command frame without arguments."""
+    def valid_command_frame(self):
+        """Valid command frame."""
         return "< CMD device456 1 water_now > 42\n"
-
-    @pytest.fixture
-    def valid_command_frame_with_args(self):
-        """Valid command frame with multiple arguments."""
-        return "< CMD device789 2 set_schedule 08:00,18:00,daily > 5A\n"
-
-    @pytest.fixture
-    def valid_command_frame_single_arg(self):
-        """Valid command frame with a single argument."""
-        return "< CMD device999 3 set_duration 30 > 7F\n"
 
     @pytest.fixture
     def valid_lg_init_frame(self):
@@ -41,7 +31,7 @@ class TestFrameParserParseFromMaster:
     @pytest.fixture
     def valid_lg_init_frame_multiple_fields(self):
         """Valid LG_INIT frame with multiple model fields."""
-        return "< LG_INIT device222 -1 Argument name;temperature;unit;celsius > 9B\n"
+        return "< LG_INIT device222 -1 Order name;temperature;unit;celsius > 9B\n"
 
     # Tests for valid frames
     def test_parse_valid_ping_frame(self, valid_ping_frame):
@@ -57,14 +47,13 @@ class TestFrameParserParseFromMaster:
         assert result.device_uid == "device123"
         assert result.command_id == 0
         assert result.command_slug is None
-        assert result.args_values == ()
         assert result.from_master is True
         assert result.checksum == "3C"
         assert result.source_frame_from_master == "< PING device123 0 >"
 
-    def test_parse_valid_command_no_args(self, valid_command_frame_no_args):
-        # GIVEN a valid command frame without arguments
-        frame_str = valid_command_frame_no_args
+    def test_parse_valid_command_frame(self, valid_command_frame):
+        # GIVEN a valid command frame
+        frame_str = valid_command_frame
 
         # WHEN parsing the frame
         result = FrameParser.parse_from_master(frame_str)
@@ -75,38 +64,8 @@ class TestFrameParserParseFromMaster:
         assert result.device_uid == "device456"
         assert result.command_id == 1
         assert result.command_slug == "water_now"
-        assert result.args_values == ()
         assert result.from_master is True
         assert result.checksum == "42"
-
-    def test_parse_valid_command_with_multiple_args(self, valid_command_frame_with_args):
-        # GIVEN a valid command frame with multiple arguments
-        frame_str = valid_command_frame_with_args
-
-        # WHEN parsing the frame
-        result = FrameParser.parse_from_master(frame_str)
-
-        # THEN the frame is correctly parsed with all arguments
-        assert isinstance(result, Frame)
-        assert result.frame_type == FrameType.CMD
-        assert result.device_uid == "device789"
-        assert result.command_id == 2
-        assert result.command_slug == "set_schedule"
-        assert result.args_values == ("08:00", "18:00", "daily")
-        assert result.from_master is True
-        assert result.checksum == "5A"
-
-    def test_parse_valid_command_with_single_arg(self, valid_command_frame_single_arg):
-        # GIVEN a valid command frame with a single argument
-        frame_str = valid_command_frame_single_arg
-
-        # WHEN parsing the frame
-        result = FrameParser.parse_from_master(frame_str)
-
-        # THEN the frame is correctly parsed
-        assert result.command_id == 3
-        assert result.command_slug == "set_duration"
-        assert result.args_values == ("30",)
 
     # Tests for invalid frames - missing newline
     def test_parse_frame_without_newline_raises_error(self):
@@ -206,14 +165,13 @@ class TestFrameParserParseFromMaster:
 
     def test_parse_frame_with_special_characters_in_slug(self):
         # GIVEN a frame with special characters in command slug
-        frame_str = "< CMD device123 5 water_zone_2 value1,value2 > AB\n"
+        frame_str = "< CMD device123 5 water_zone_2 > AB\n"
 
         # WHEN parsing the frame
         result = FrameParser.parse_from_master(frame_str)
 
         # THEN the slug is correctly parsed
         assert result.command_slug == "water_zone_2"
-        assert result.args_values == ("value1", "value2")
 
     def test_parse_valid_lg_init_frame(self, valid_lg_init_frame):
         # GIVEN a valid LG_INIT frame string from master
@@ -244,7 +202,7 @@ class TestFrameParserParseFromMaster:
         assert result.frame_type == FrameType.LG_INIT
         assert result.device_uid == "device222"
         assert result.command_id == -1
-        assert result.model == ModelType.ARGUMENT
+        assert result.model == ModelType.ORDER
         assert result.model_attrs_values == ("name", "temperature", "unit", "celsius")
         assert result.command_slug is None
         assert result.checksum == "9B"
@@ -580,7 +538,7 @@ class TestFrameParserRoundTrip:
 
     def test_roundtrip_command_parsing_and_response(self):
         # GIVEN a command frame string from master
-        master_frame_str = "< CMD device123 5 get_sensor val1,val2 > 3C\n"
+        master_frame_str = "< CMD device123 5 get_sensor > 3C\n"
 
         # WHEN parsing the incoming frame
         parsed_frame = FrameParser.parse_from_master(master_frame_str)
