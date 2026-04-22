@@ -35,18 +35,21 @@ def parse_str_order_to_model(fields_values: tuple[str, ...]) -> Order:
         ''
 
     Raises:
-        ValueError: If a cast operation fails or field count doesn't match Order.fields_cfg.
-        TypeError: If a value cannot be cast to its specified field type.
+        ValueError: If any of the string values cannot be cast to the expected type
+            defined in Order.fields_cfg, or if the number of fields does not match.
     """
+    order_fields = Order.fields_cfg
+    order_fields_count = len(order_fields)
 
-    data = {}
-    for i, f_config in enumerate(Order.fields_cfg):
-        field_name = f_config[0]
-        cast = f_config[1]
-        if cast is str:
-            data[field_name] = fields_values[i]
+    if len(fields_values) != order_fields_count:
+        raise ValueError(f"Expected {order_fields_count} fields, but got {len(fields_values)}. Fields: {fields_values}")
+
+    field_values_casted = {}
+    for (field_name, field_type), value in zip(order_fields, fields_values):
+        if field_type is str:
+            field_values_casted[field_name] = value
         else:
-            data[field_name] = cast(fields_values[i])
+            field_values_casted[field_name] = field_type(value)
 
-    new_order = Order(**data)
+    new_order = Order(**field_values_casted)
     return new_order
