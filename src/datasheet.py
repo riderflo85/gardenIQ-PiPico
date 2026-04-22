@@ -1,20 +1,62 @@
+from machine import ADC
+from machine import PWM
+from machine import Pin as MachinePin
+
 from src.core import FrozenDataclass
-from src.core.enum import PseudoEnum
+
+AVAILABLE_CHANNELS = ("digit", "pwm", "analog")
 
 
-class ChannelType(PseudoEnum):
-    DIGIT = "digit"
-    PWM = "pwm"
-    ANALOG = "analog"
-    I2C = "i2c"
-    SPI = "spi"
-    UART = "uart"
+class InvalidChannelError(ValueError):
+    """Exception raised when an invalid channel type is provided."""
 
-    @classmethod
-    def check_value(cls, value: str) -> str:
-        if value in cls.values():
-            return value
-        raise ValueError(f"Invalid ChannelType value: {value}. Expected one of: {', '.join(cls.values())}")
+    def __init__(self, channel: str) -> None:
+        message = f"Invalid channel type: '{channel}'. Available channels are: {', '.join(AVAILABLE_CHANNELS)}."
+        super().__init__(message)
+
+
+# ------------------------------------------------------------------------------------------------- #
+#
+# L'utilisation de FrozenDataclass avec __slots__ plutôt qu'un simple dict offre :
+# - L'immutabilité : toute tentative de modification lève une AttributeError,
+#       garantissant que la whitelist ne peut pas être altérée à l'exécution.
+# - L'absence de __dict__ interne sur les instances (grâce aux __slots__),
+#      ce qui réduit l'empreinte mémoire — important sur RP2040 (~264 KB de RAM).
+# - L'absence des méthodes parasites d'un dict (keys, values, pop, update...),
+#       qui ne seraient jamais utilisées ici et consomment de la mémoire inutilement.
+class _PinConst(FrozenDataclass):
+    __slots__ = ("cls", "IN", "OUT", "PULL_UP", "PULL_DOWN")
+
+
+class _ADCConst(FrozenDataclass):
+    __slots__ = ("cls",)
+
+
+class _PWMConst(FrozenDataclass):
+    __slots__ = ("cls",)
+
+
+class MpMachine(FrozenDataclass):
+    __slots__ = ("Pin", "PWM", "ADC")
+
+
+# MP_MACHINE expose une whitelist stricte du module `machine` de MicroPython.
+# Seules les classes Pin, PWM et ADC sont accessibles, ainsi que les constantes
+#   explicitement déclarées (IN, OUT, PULL_UP, PULL_DOWN...).
+# Cela empêche qu'une configuration JSON malformée ou malveillante puisse accéder
+#   à n'importe quelle classe ou fonction du module machine via getattr(machine, ...).
+MP_MACHINE = MpMachine(
+    Pin=_PinConst(
+        cls=MachinePin,
+        IN=MachinePin.IN,
+        OUT=MachinePin.OUT,
+        PULL_UP=MachinePin.PULL_UP,
+        PULL_DOWN=MachinePin.PULL_DOWN,
+    ),
+    PWM=_PWMConst(cls=PWM),
+    ADC=_ADCConst(cls=ADC),
+)
+# ------------------------------------------------------------------------------------------------- #
 
 
 class Channel(FrozenDataclass):
@@ -129,28 +171,51 @@ class AllowedPins:
     def __init__(self) -> None:
         self.all_pins_number = self._get_all_pins()
 
+    def _get_digit_pins(self) -> set[int]:
+        return {p_num for channel in self.digits for p_num in channel.pins}
+
+    def _get_pwm_pins(self) -> set[int]:
+        return {p_num for channel in self.pwms for p_num in channel.pins}
+
+    def _get_analog_pins(self) -> set[int]:
+        return {p_num for channel in self.analogs for p_num in channel.pins}
+
+    def _get_i2c_pins(self) -> set[int]:
+        return {p_num for channel in self.i2cs for p_num in channel.pins}
+
+    def _get_spi_pins(self) -> set[int]:
+        return {p_num for channel in self.spis for p_num in channel.pins}
+
+    def _get_uart_pins(self) -> set[int]:
+        return {p_num for channel in self.uarts for p_num in channel.pins}
+
     def _get_all_pins(self) -> set[int]:
         pins_number = set()
 
-        for p_digit in self.digits:
-            pins_number.update({p_num for p_num in p_digit.pins})
-
-        for p_pwm in self.pwms:
-            pins_number.update({p_num for p_num in p_pwm.pins})
-
-        for p_adc in self.analogs:
-            pins_number.update({p_num for p_num in p_adc.pins})
-
-        for p_i2c in self.i2cs:
-            pins_number.update({p_num for p_num in p_i2c.pins})
-
-        for p_spi in self.spis:
-            pins_number.update({p_num for p_num in p_spi.pins})
-
-        for p_uart in self.uarts:
-            pins_number.update({p_num for p_num in p_uart.pins})
+        pins_number.update(self._get_digit_pins())
+        pins_number.update(self._get_pwm_pins())
+        pins_number.update(self._get_analog_pins())
+        pins_number.update(self._get_i2c_pins())
+        pins_number.update(self._get_spi_pins())
+        pins_number.update(self._get_uart_pins())
 
         return pins_number
+
+    def get_pins_by_channel_type(self, channel_type: str) -> set[int]:
+        if channel_type == "digit":
+            return self._get_digit_pins()
+        elif channel_type == "pwm":
+            return self._get_pwm_pins()
+        elif channel_type == "analog":
+            return self._get_analog_pins()
+        elif channel_type == "i2c":
+            return self._get_i2c_pins()
+        elif channel_type == "spi":
+            return self._get_spi_pins()
+        elif channel_type == "uart":
+            return self._get_uart_pins()
+        else:
+            raise InvalidChannelError(channel_type)
 
 
 # singleton
