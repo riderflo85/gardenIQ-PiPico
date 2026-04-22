@@ -8,6 +8,8 @@ class Pin:
 
     OUT = 0
     IN = 1
+    PULL_UP = 2
+    PULL_DOWN = 3
 
     def __init__(self, id: int, mode: int, pull=None):
         self.id = id
