@@ -3,12 +3,15 @@
 # It is not a unit test, but an integration test.
 import json
 
+import json
+
 import pytest
 
 from src.core import DEVICE_UID
 from src.core import event_emitter
 from src.models import ModelType
 from src.models import Order
+from src.models import Pin
 from src.protocols.settings import ETX
 from src.protocols.settings import STX
 from src.protocols.usb.callback import cb_register
@@ -23,6 +26,7 @@ from src.protocols.usb.frame import FrameType
 from src.protocols.usb.handler import FrameHandler
 from src.protocols.usb.parsers import FrameParser
 from src.stores import commands_store
+from src.stores import init_pins_store
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -51,6 +55,48 @@ def build_lg_init_frame_str(device_uid: str, model: str, fields: str) -> str:
 
 ORDER_MODEL_NAME = "order"
 ORDER_FIELDS = "1;get_temp;get;5;-1;False;"
+
+# initial_configuration JSON for a digital pin GP3 (IN mode), compact (no spaces).
+_PIN_CFG = json.dumps(
+    {
+        "channel_class": "Pin",
+        "arguments": [
+            {
+                "name": "id",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": False,
+                    "mp_module_name": "",
+                    "mp_class_name": "",
+                    "garden_model": "Pin",
+                    "attribute_name": "pin_number",
+                    "check_with_json_value": True,
+                    "use_json_value": True,
+                },
+                "value": 3,
+            },
+            {
+                "name": "mode",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": True,
+                    "mp_module_name": "machine",
+                    "mp_class_name": "Pin",
+                    "garden_model": "",
+                    "attribute_name": "IN",
+                    "check_with_json_value": False,
+                    "use_json_value": False,
+                },
+                "value": "",
+            },
+        ],
+    },
+    separators=(",", ":"),
+)
+
+PIN_MODEL_NAME = "Pin"
+# digit ; pin_number=3 ; compact JSON config — three fields matching Pin.fields_cfg order
+PIN_FIELDS = f"digit;3;{_PIN_CFG}"
 
 # initial_configuration JSON for a digital pin GP3 (IN mode), compact (no spaces).
 _PIN_CFG = json.dumps(
@@ -138,6 +184,14 @@ def clean_commands_store():
     commands_store._orders.clear()
 
 
+@pytest.fixture(autouse=True)
+def clean_pins_store():
+    """Clear the pins store before and after each test to ensure isolation."""
+    init_pins_store._pins.clear()
+    yield
+    init_pins_store._pins.clear()
+
+
 # -- Order fixtures --
 
 
@@ -157,6 +211,27 @@ def order_raw_bytes(order_raw_frame):
 def parsed_order_frame(order_raw_frame):
     """Fixture providing a Frame object parsed from the raw Order LG_INIT frame."""
     return FrameParser.parse_from_master(order_raw_frame)
+
+
+# -- Pin fixtures --
+
+
+@pytest.fixture
+def pin_raw_frame():
+    """Fixture providing a valid raw LG_INIT frame string for the Pin model."""
+    return build_lg_init_frame_str(DEVICE_UID, PIN_MODEL_NAME, PIN_FIELDS)
+
+
+@pytest.fixture
+def pin_raw_bytes(pin_raw_frame):
+    """Fixture providing the Pin LG_INIT frame as raw bytes (simulating stdin read)."""
+    return pin_raw_frame.encode("utf-8")
+
+
+@pytest.fixture
+def parsed_pin_frame(pin_raw_frame):
+    """Fixture providing a Frame object parsed from the raw Pin LG_INIT frame."""
+    return FrameParser.parse_from_master(pin_raw_frame)
 
 
 # -- Pin fixtures --
@@ -765,7 +840,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # THEN the pin is retrievable from the pins store
-        pin = init_pins_store.get_item(3)
+        pin = init_pins_store.get_pin(3)
         assert isinstance(pin, Pin)
 
     def test_stored_pin_has_correct_channel_choiced(self, handler, parsed_pin_frame):
@@ -774,7 +849,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # WHEN we retrieve the pin
-        pin = init_pins_store.get_item(3)
+        pin = init_pins_store.get_pin(3)
 
         # THEN channel_choiced is 'digit'
         assert pin.channel_choiced == "digit"
@@ -785,7 +860,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # WHEN we retrieve the pin
-        pin = init_pins_store.get_item(3)
+        pin = init_pins_store.get_pin(3)
 
         # THEN pin_number is 3
         assert pin.pin_number == 3
@@ -796,7 +871,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # WHEN we retrieve the pin
-        pin = init_pins_store.get_item(3)
+        pin = init_pins_store.get_pin(3)
 
         # THEN init_done is True (machine pin was configured)
         assert pin.init_done is True
@@ -823,7 +898,7 @@ class TestLgInitPinHandlerErrors:
 
         # THEN the pin is NOT in the pins store
         with pytest.raises(KeyError):
-            init_pins_store.get_item(3)
+            init_pins_store.get_pin(3)
 
     def test_wrong_device_uid_raises_exception_for_pin_frame(self, handler):
         """Test that a LG_INIT Pin frame with a non-matching device UID raises an exception."""
@@ -954,7 +1029,7 @@ class TestLgInitPinFullPipeline:
         await on_order_process(frame)
 
         # THEN the pin is stored in init_pins_store
-        pin = init_pins_store.get_item(3)
+        pin = init_pins_store.get_pin(3)
         assert isinstance(pin, Pin)
         assert pin.pin_number == 3
         assert pin.channel_choiced == "digit"
