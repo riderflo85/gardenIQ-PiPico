@@ -2,13 +2,15 @@ from src.__version__ import __version__
 from src.__version__ import micropython_version
 from src.core import DEVICE_UID
 from src.models import ModelType
-from src.stores import command_store
+from src.stores import commands_store
+from src.stores import init_pins_store
 
 from .frame import CommandState
 from .frame import Frame
 from .frame import FrameType
 from .parsers import FrameParser
 from .parsers import parse_str_order_to_model
+from .parsers import parse_str_pin_to_model
 
 
 class FrameHandler:
@@ -62,10 +64,13 @@ class FrameHandler:
         # TODO: Finish this method when the command store are available.
 
     def _handle_init_order(self, frame: Frame) -> str:
-        """Complete or update a initial command registry."""
+        """Complete or update registry."""
         if frame.model == ModelType.ORDER:
             order_obj = parse_str_order_to_model(frame.model_attrs_values)
-            command_store.add_order(order_obj)
+            commands_store.add_order(order_obj)
+        elif frame.model == ModelType.PIN:
+            pin_obj = parse_str_pin_to_model(frame.model_attrs_values)
+            init_pins_store.add_pin(pin_obj)
         else:
             raise ValueError(f"Model `{frame.model}` is not supported !")
         frame_obj = Frame(
