@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from src.models import ModelType
@@ -5,6 +7,49 @@ from src.protocols.errors import CommandError
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+# Full initial_configuration JSON for a digital pin n°3 (IN mode).
+# Serialized without spaces so it can be embedded as a single token in a frame string.
+_LG_INIT_PIN_CFG = json.dumps(
+    {
+        "channel_class": "Pin",
+        "arguments": [
+            {
+                "name": "id",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": False,
+                    "mp_module_name": "",
+                    "mp_class_name": "",
+                    "garden_model": "Pin",
+                    "attribute_name": "pin_number",
+                    "check_with_json_value": True,
+                    "use_json_value": True,
+                },
+                "value": 3,
+            },
+            {
+                "name": "mode",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": True,
+                    "mp_module_name": "machine",
+                    "mp_class_name": "Pin",
+                    "garden_model": "",
+                    "attribute_name": "IN",
+                    "check_with_json_value": False,
+                    "use_json_value": False,
+                },
+                "value": "",
+            },
+        ],
+    },
+    separators=(",", ":"),
+)
 
 
 # Fixtures
@@ -111,6 +156,29 @@ def lg_init_frame_data():
     }
 
 
+@pytest.fixture
+def lg_init_pin_frame_data():
+    """Fixture providing data for a LG_INIT frame targeting a Pin model (from master).
+
+    model_attrs_values contains the three raw string values that map to Pin.fields_cfg
+    in order: channel_choiced, pin_number, initial_configuration (compact JSON).
+    """
+    source_data = f"LG_INIT DEV555 -1 Pin digit 3 {_LG_INIT_PIN_CFG}"
+    calculated_checksum = Frame.build_checksum(source_data.encode())
+    checksum_hex = format(calculated_checksum, "02X")
+    return {
+        "frame_type": FrameType.LG_INIT,
+        "device_uid": "DEV555",
+        "command_id": -1,
+        "command_slug": None,
+        "from_master": True,
+        "model": ModelType.PIN,
+        "model_attrs_values": ("digit", "3", _LG_INIT_PIN_CFG),
+        "checksum": checksum_hex,
+        "source_frame_from_master": source_data,
+    }
+
+
 class TestFrameType:
     """Tests for the FrameType enum."""
 
@@ -182,6 +250,16 @@ class TestModelType:
         # THEN: It should equal "Order"
         assert order_type == "Order"
 
+    def test_model_type_has_pin(self):
+        """Test that ModelType has PIN value."""
+        # GIVEN: The ModelType enum
+
+        # WHEN: We access the PIN attribute
+        pin_type = ModelType.PIN
+
+        # THEN: It should equal "Pin"
+        assert pin_type == "Pin"
+
     def test_model_type_iteration(self):
         """Test that ModelType can be iterated."""
         # GIVEN: The ModelType enum
@@ -191,7 +269,8 @@ class TestModelType:
 
         # THEN: It should contain all model types
         assert "Order" in values
-        assert len(values) == 1
+        assert "Pin" in values
+        assert len(values) == 2
 
 
 class TestCommandState:
@@ -322,6 +401,22 @@ class TestFrameInitialization:
         assert frame.from_master is True
         assert frame.model == ModelType.ORDER
         assert frame.model_attrs_values == ("language", "fr")
+
+    def test_frame_creation_with_lg_init_pin(self, lg_init_pin_frame_data):
+        """Test creating a LG_INIT frame targeting a Pin model."""
+        # GIVEN: LG_INIT frame data targeting a Pin model (from fixture)
+
+        # WHEN: We create a Frame instance
+        frame = Frame(**lg_init_pin_frame_data)
+
+        # THEN: LG_INIT Pin attributes should be set correctly
+        assert frame.frame_type == FrameType.LG_INIT
+        assert frame.device_uid == "DEV555"
+        assert frame.command_id == -1
+        assert frame.from_master is True
+        assert frame.model == ModelType.PIN
+        assert frame.model_attrs_values == ("digit", "3", _LG_INIT_PIN_CFG)
+        assert frame.command_slug is None
 
 
 class TestFrameValidation:
@@ -463,6 +558,17 @@ class TestFrameValidation:
         # THEN: The frame should be created successfully
         assert frame.model == ModelType.ORDER
 
+    def test_validation_passes_with_model_type_pin(self, basic_command_frame_data):
+        """Test that validation passes when model is ModelType.PIN."""
+        # GIVEN: Frame data with ModelType.PIN
+        data = {**basic_command_frame_data, "model": ModelType.PIN}
+
+        # WHEN: We create a Frame instance
+        frame = Frame(**data)
+
+        # THEN: The frame should be created successfully
+        assert frame.model == ModelType.PIN
+
     def test_validation_fails_when_lg_init_from_master_without_model(self):
         """Test that validation fails for LG_INIT from master without model."""
         # GIVEN: LG_INIT frame data from master without model
@@ -493,6 +599,38 @@ class TestFrameValidation:
         assert frame.command_id == -1
         assert frame.from_master is True
         assert frame.model == ModelType.ORDER
+
+    def test_validation_passes_when_lg_init_from_master_with_pin_model(self, lg_init_pin_frame_data):
+        """Test that validation passes for LG_INIT from master targeting a Pin model."""
+        # GIVEN: LG_INIT frame data from master with ModelType.PIN (from fixture)
+
+        # WHEN: We create a Frame instance
+        frame = Frame(**lg_init_pin_frame_data)
+
+        # THEN: The frame should be created successfully
+        assert frame.command_id == -1
+        assert frame.from_master is True
+        assert frame.model == ModelType.PIN
+        assert frame.model_attrs_values == ("digit", "3", _LG_INIT_PIN_CFG)
+
+    def test_validation_fails_when_lg_init_pin_from_master_without_model(self):
+        """Test that a LG_INIT Pin frame from master without model raises ValueError."""
+        # GIVEN: LG_INIT frame data targeting a Pin, but model is omitted
+        source_data = "LG_INIT DEV666 -1"
+        calculated_checksum = Frame.build_checksum(source_data.encode())
+        checksum_hex = format(calculated_checksum, "02X")
+        data = {
+            "frame_type": FrameType.LG_INIT,
+            "device_uid": "DEV666",
+            "command_id": -1,
+            "from_master": True,
+            "checksum": checksum_hex,
+            "source_frame_from_master": source_data,
+        }
+
+        # WHEN / THEN: A ValueError is raised because model is required
+        with pytest.raises(ValueError, match="model must be provided if command_id is -1 and from_master is True"):
+            Frame(**data)
 
 
 class TestBuildChecksum:
@@ -872,6 +1010,30 @@ class TestIsInitOrder:
 
         # THEN: It should return False
         assert result is False
+
+    def test_is_init_order_returns_true_for_lg_init_pin_from_master(self, lg_init_pin_frame_data):
+        """Test that is_init_order returns True for a LG_INIT Pin frame from master."""
+        # GIVEN: A LG_INIT frame targeting a Pin model from master (from fixture)
+        frame = Frame(**lg_init_pin_frame_data)
+
+        # WHEN: We call is_init_order
+        result = frame.is_init_order()
+
+        # THEN: It should return True
+        assert result is True
+
+    def test_is_init_order_pin_frame_has_correct_model_attrs(self, lg_init_pin_frame_data):
+        """Test that a LG_INIT Pin frame carries the expected model_attrs_values."""
+        # GIVEN: A LG_INIT frame targeting a Pin model (from fixture)
+        frame = Frame(**lg_init_pin_frame_data)
+
+        # WHEN: We inspect the model and its attrs values
+        model = frame.model
+        attrs = frame.model_attrs_values
+
+        # THEN: They should match the Pin-specific values
+        assert model == ModelType.PIN
+        assert attrs == ("digit", "3", _LG_INIT_PIN_CFG)
 
 
 class TestIsCommandOrder:
