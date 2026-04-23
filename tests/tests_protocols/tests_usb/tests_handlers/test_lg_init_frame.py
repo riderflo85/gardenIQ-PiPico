@@ -22,7 +22,7 @@ from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
 from src.protocols.usb.handler import FrameHandler
 from src.protocols.usb.parsers import FrameParser
-from src.stores import command_store
+from src.stores import commands_store
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -131,18 +131,11 @@ def drain_queues():
 
 @pytest.fixture(autouse=True)
 def clean_commands_store():
+def clean_commands_store():
     """Clear the command store before and after each test to ensure isolation."""
-    commands_store._items.clear()
+    commands_store._orders.clear()
     yield
-    commands_store._items.clear()
-
-
-@pytest.fixture(autouse=True)
-def clean_pins_store():
-    """Clear the pins store before and after each test to ensure isolation."""
-    init_pins_store._items.clear()
-    yield
-    init_pins_store._items.clear()
+    commands_store._orders.clear()
 
 
 # -- Order fixtures --
@@ -335,13 +328,15 @@ class TestLgInitOrderHandler:
 
     def test_order_added_to_commands_store(self, handler, parsed_order_frame):
         """Test that the Order object is stored in commands_store after handling."""
+    def test_order_added_to_commands_store(self, handler, parsed_order_frame):
+        """Test that the Order object is stored in commands_store after handling."""
         # GIVEN a handler and a LG_INIT Order frame
 
         # WHEN the handler processes the frame
         handler.handle_master_command(parsed_order_frame)
 
         # THEN the order is retrievable from the command store
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
         assert isinstance(order, Order)
 
     def test_stored_order_has_correct_pk(self, handler, parsed_order_frame):
@@ -350,7 +345,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
 
         # THEN pk is 1
         assert order.pk == 1
@@ -361,7 +356,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
 
         # THEN slug is 'get_temp'
         assert order.slug == "get_temp"
@@ -372,7 +367,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
 
         # THEN action_type is 'get'
         assert order.action_type == "get"
@@ -383,7 +378,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
 
         # THEN sensor is 5
         assert order.sensor == 5
@@ -394,7 +389,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
 
         # THEN controller is -1
         assert order.controller == -1
@@ -405,7 +400,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
 
         # THEN is_toggle_ctrl_value is False
         assert order.is_toggle_ctrl_value is False
@@ -416,7 +411,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_item(1)
+        order = commands_store.get_order(1)
 
         # THEN ctrl_value is ''
         assert order.ctrl_value == ""
@@ -493,7 +488,7 @@ class TestLgInitHandlerErrors:
 
         # THEN the order is NOT in the command store
         with pytest.raises(KeyError):
-            commands_store.get_item(1)
+            commands_store.get_order(1)
 
 
 # ---------------------------------------------------------------------------
