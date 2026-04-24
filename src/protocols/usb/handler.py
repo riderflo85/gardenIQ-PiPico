@@ -67,10 +67,10 @@ class FrameHandler:
         """Complete or update registry."""
         if frame.model == ModelType.ORDER:
             order_obj = parse_str_order_to_model(frame.model_attrs_values)
-            commands_store.add_order(order_obj)
+            commands_store.add_item(order_obj)
         elif frame.model == ModelType.PIN:
             pin_obj = parse_str_pin_to_model(frame.model_attrs_values)
-            init_pins_store.add_pin(pin_obj)
+            init_pins_store.add_item(pin_obj)
         else:
             raise ValueError(f"Model `{frame.model}` is not supported !")
         frame_obj = Frame(
