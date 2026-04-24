@@ -1,12 +1,60 @@
+import json
+
 import pytest
 
-from src.core.models import ModelType
+from src.models import ModelType
+from src.models import Pin
 from src.protocols.errors import CommandError
 from src.protocols.errors import FrameParsingError
 from src.protocols.usb.frame import CommandState
 from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
 from src.protocols.usb.parsers import FrameParser
+from src.protocols.usb.parsers.pin import parse_str_pin_to_model
+from tests.mocks.machine import Pin as MockPin
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+# Full initial_configuration JSON for a digital pin n°3 (IN mode).
+# Serialized without spaces so it fits as a single ';'-delimited token in a frame string.
+_LG_INIT_PIN_CFG = json.dumps(
+    {
+        "channel_class": "Pin",
+        "arguments": [
+            {
+                "name": "id",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": False,
+                    "mp_module_name": "",
+                    "mp_class_name": "",
+                    "garden_model": "Pin",
+                    "attribute_name": "pin_number",
+                    "check_with_json_value": True,
+                    "use_json_value": True,
+                },
+                "value": 3,
+            },
+            {
+                "name": "mode",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": True,
+                    "mp_module_name": "machine",
+                    "mp_class_name": "Pin",
+                    "garden_model": "",
+                    "attribute_name": "IN",
+                    "check_with_json_value": False,
+                    "use_json_value": False,
+                },
+                "value": "",
+            },
+        ],
+    },
+    separators=(",", ":"),
+)
 
 
 class TestFrameParserParseFromMaster:
@@ -32,6 +80,15 @@ class TestFrameParserParseFromMaster:
     def valid_lg_init_frame_multiple_fields(self):
         """Valid LG_INIT frame with multiple model fields."""
         return "< LG_INIT device222 -1 Order name;temperature;unit;celsius > 9B\n"
+
+    @pytest.fixture
+    def valid_lg_init_pin_frame(self):
+        """Valid LG_INIT frame from master targeting a Pin model.
+
+        model_attrs_values token encodes the three Pin.fields_cfg values separated by ';':
+        channel_choiced ; pin_number ; initial_configuration (compact JSON).
+        """
+        return f"< LG_INIT device777 -1 Pin digit;3;{_LG_INIT_PIN_CFG} > EF\n"
 
     # Tests for valid frames
     def test_parse_valid_ping_frame(self, valid_ping_frame):
@@ -218,6 +275,51 @@ class TestFrameParserParseFromMaster:
         assert result.model == ModelType.ORDER
         assert result.model_attrs_values == ("slug", "test_order", "priority", "high")
         assert result.command_id == -1
+
+    def test_parse_valid_lg_init_pin_frame(self, valid_lg_init_pin_frame):
+        # GIVEN a valid LG_INIT frame string from master targeting a Pin model
+        frame_str = valid_lg_init_pin_frame
+
+        # WHEN parsing the frame
+        result = FrameParser.parse_from_master(frame_str)
+
+        # THEN the frame is correctly parsed
+        assert isinstance(result, Frame)
+        assert result.frame_type == FrameType.LG_INIT
+        assert result.device_uid == "device777"
+        assert result.command_id == -1
+        assert result.model == ModelType.PIN
+        assert result.model_attrs_values == ("digit", "3", _LG_INIT_PIN_CFG)
+        assert result.command_slug is None
+        assert result.from_master is True
+        assert result.checksum == "EF"
+
+    def test_parse_lg_init_pin_model_attrs_count_matches_fields_cfg(self, valid_lg_init_pin_frame):
+        # GIVEN a valid LG_INIT Pin frame (fixture)
+        frame_str = valid_lg_init_pin_frame
+
+        # WHEN parsing the frame
+        result = FrameParser.parse_from_master(frame_str)
+
+        # THEN model_attrs_values has the same number of elements as Pin.fields_cfg
+        assert len(result.model_attrs_values) == len(Pin.fields_cfg)
+
+    def test_parse_lg_init_pin_model_attrs_are_parseable_to_pin(self, valid_lg_init_pin_frame):
+        # GIVEN a valid LG_INIT Pin frame (fixture)
+        frame_str = valid_lg_init_pin_frame
+
+        # WHEN parsing the frame and feeding model_attrs_values to parse_str_pin_to_model
+        result = FrameParser.parse_from_master(frame_str)
+        pin = parse_str_pin_to_model(result.model_attrs_values)
+
+        # THEN a valid Pin instance is returned with expected field values
+        assert isinstance(pin, Pin)
+        assert pin.channel_choiced == "digit"
+        assert pin.pin_number == 3
+        # initial_configuration is set to None when Pin is correctly initialized.
+        assert pin.initial_configuration is None
+        assert pin.init_done
+        assert isinstance(pin.executor, MockPin)  # Pin.executor is a MockPin instance in tests
 
 
 class TestFrameParserParseFromFrameKlass:
@@ -598,18 +700,38 @@ class TestFrameParserRoundTrip:
         assert parsed_lg_init.model == ModelType.ORDER
         assert parsed_lg_init.model_attrs_values == ("language", "en")
 
-        # AND creating a LG_INIT response
-        lg_init_response = Frame(
+    def test_roundtrip_lg_init_pin_parsing_and_response(self):
+        # GIVEN a LG_INIT Pin frame from master with a full initial_configuration JSON
+        lg_init_pin_str = f"< LG_INIT device777 -1 Pin digit;3;{_LG_INIT_PIN_CFG} > EF\n"
+
+        # WHEN parsing the LG_INIT Pin frame
+        parsed = FrameParser.parse_from_master(lg_init_pin_str)
+
+        # THEN the parsed frame carries the correct Pin model metadata
+        assert parsed.command_id == -1
+        assert parsed.model == ModelType.PIN
+        assert parsed.model_attrs_values == ("digit", "3", _LG_INIT_PIN_CFG)
+
+        # AND the model_attrs_values can be directly fed to parse_str_pin_to_model
+        pin = parse_str_pin_to_model(parsed.model_attrs_values)
+        assert isinstance(pin, Pin)
+        assert pin.channel_choiced == "digit"
+        assert pin.pin_number == 3
+        # initial_configuration is set to None when Pin is correctly initialized.
+        assert pin.initial_configuration is None
+        assert pin.init_done
+
+        # AND when creating a response frame and serializing it
+        response_frame = Frame(
             frame_type=FrameType.ACK,
-            device_uid=parsed_lg_init.device_uid,
+            device_uid=parsed.device_uid,
             command_id=-1,
             from_master=False,
             command_state=CommandState.OK,
         )
+        response_str = FrameParser.parse_from_frame_klass(response_frame)
 
-        # AND serializing the response
-        response_str = FrameParser.parse_from_frame_klass(lg_init_response)
-
-        # THEN the response is correctly formatted
-        assert "< ACK device444 -1 OK >" in response_str
+        # THEN the response is a well-formed ACK with no conditional data
+        assert "< ACK device777 -1 OK >" in response_str
         assert response_str.endswith("\n")
+        assert isinstance(pin.executor, MockPin)  # Pin.executor is a MockPin instance in tests

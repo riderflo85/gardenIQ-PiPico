@@ -1,13 +1,15 @@
 # This test, test a lg_init frame complete workflow, from receiving a lg_init frame to sending the response.
 # It is a high level test, that covers the handler and the parser.
 # It is not a unit test, but an integration test.
+import json
+
 import pytest
 
 from src.core import DEVICE_UID
-from src.core import command_store
 from src.core import event_emitter
-from src.core.models import ModelType
-from src.core.models import Order
+from src.models import ModelType
+from src.models import Order
+from src.models import Pin
 from src.protocols.settings import ETX
 from src.protocols.settings import STX
 from src.protocols.usb.callback import cb_register
@@ -21,6 +23,8 @@ from src.protocols.usb.frame import Frame
 from src.protocols.usb.frame import FrameType
 from src.protocols.usb.handler import FrameHandler
 from src.protocols.usb.parsers import FrameParser
+from src.stores import commands_store
+from src.stores import init_pins_store
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -49,6 +53,48 @@ def build_lg_init_frame_str(device_uid: str, model: str, fields: str) -> str:
 
 ORDER_MODEL_NAME = "order"
 ORDER_FIELDS = "1;get_temp;get;5;-1;False;"
+
+# initial_configuration JSON for a digital pin GP3 (IN mode), compact (no spaces).
+_PIN_CFG = json.dumps(
+    {
+        "channel_class": "Pin",
+        "arguments": [
+            {
+                "name": "id",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": False,
+                    "mp_module_name": "",
+                    "mp_class_name": "",
+                    "garden_model": "Pin",
+                    "attribute_name": "pin_number",
+                    "check_with_json_value": True,
+                    "use_json_value": True,
+                },
+                "value": 3,
+            },
+            {
+                "name": "mode",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": True,
+                    "mp_module_name": "machine",
+                    "mp_class_name": "Pin",
+                    "garden_model": "",
+                    "attribute_name": "IN",
+                    "check_with_json_value": False,
+                    "use_json_value": False,
+                },
+                "value": "",
+            },
+        ],
+    },
+    separators=(",", ":"),
+)
+
+PIN_MODEL_NAME = "Pin"
+# digit ; pin_number=3 ; compact JSON config — three fields matching Pin.fields_cfg order
+PIN_FIELDS = f"digit;3;{_PIN_CFG}"
 
 
 # ---------------------------------------------------------------------------
@@ -86,11 +132,19 @@ def drain_queues():
 
 
 @pytest.fixture(autouse=True)
-def clean_command_store():
+def clean_commands_store():
     """Clear the command store before and after each test to ensure isolation."""
-    command_store._orders.clear()
+    commands_store._items.clear()
     yield
-    command_store._orders.clear()
+    commands_store._items.clear()
+
+
+@pytest.fixture(autouse=True)
+def clean_pins_store():
+    """Clear the pins store before and after each test to ensure isolation."""
+    init_pins_store._items.clear()
+    yield
+    init_pins_store._items.clear()
 
 
 # -- Order fixtures --
@@ -112,6 +166,27 @@ def order_raw_bytes(order_raw_frame):
 def parsed_order_frame(order_raw_frame):
     """Fixture providing a Frame object parsed from the raw Order LG_INIT frame."""
     return FrameParser.parse_from_master(order_raw_frame)
+
+
+# -- Pin fixtures --
+
+
+@pytest.fixture
+def pin_raw_frame():
+    """Fixture providing a valid raw LG_INIT frame string for the Pin model."""
+    return build_lg_init_frame_str(DEVICE_UID, PIN_MODEL_NAME, PIN_FIELDS)
+
+
+@pytest.fixture
+def pin_raw_bytes(pin_raw_frame):
+    """Fixture providing the Pin LG_INIT frame as raw bytes (simulating stdin read)."""
+    return pin_raw_frame.encode("utf-8")
+
+
+@pytest.fixture
+def parsed_pin_frame(pin_raw_frame):
+    """Fixture providing a Frame object parsed from the raw Pin LG_INIT frame."""
+    return FrameParser.parse_from_master(pin_raw_frame)
 
 
 # ---------------------------------------------------------------------------
@@ -260,15 +335,15 @@ class TestLgInitOrderHandler:
         # THEN the checksum matches
         assert int(cs_hex, 16) == expected_cs
 
-    def test_order_added_to_command_store(self, handler, parsed_order_frame):
-        """Test that the Order object is stored in command_store after handling."""
+    def test_order_added_to_commands_store(self, handler, parsed_order_frame):
+        """Test that the Order object is stored in commands_store after handling."""
         # GIVEN a handler and a LG_INIT Order frame
 
         # WHEN the handler processes the frame
         handler.handle_master_command(parsed_order_frame)
 
         # THEN the order is retrievable from the command store
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
         assert isinstance(order, Order)
 
     def test_stored_order_has_correct_pk(self, handler, parsed_order_frame):
@@ -277,7 +352,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN pk is 1
         assert order.pk == 1
@@ -288,7 +363,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN slug is 'get_temp'
         assert order.slug == "get_temp"
@@ -299,7 +374,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN action_type is 'get'
         assert order.action_type == "get"
@@ -310,7 +385,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN sensor is 5
         assert order.sensor == 5
@@ -321,7 +396,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN controller is -1
         assert order.controller == -1
@@ -332,7 +407,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN is_toggle_ctrl_value is False
         assert order.is_toggle_ctrl_value is False
@@ -343,7 +418,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = command_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN ctrl_value is ''
         assert order.ctrl_value == ""
@@ -420,7 +495,7 @@ class TestLgInitHandlerErrors:
 
         # THEN the order is NOT in the command store
         with pytest.raises(KeyError):
-            command_store.get_order(1)
+            commands_store.get_item(1)
 
 
 # ---------------------------------------------------------------------------
@@ -541,3 +616,352 @@ class TestLgInitFullPipeline:
         response = outbox.get_nowait()
         assert f"{STX} ACK" in response
         assert DEVICE_UID in response
+
+
+# ---------------------------------------------------------------------------
+# Tests – Parsing stage (Pin model)
+# ---------------------------------------------------------------------------
+
+
+class TestLgInitPinParsing:
+    """Tests for parsing a raw LG_INIT Pin frame string into a Frame object."""
+
+    def test_parsed_frame_type_is_lg_init(self, parsed_pin_frame):
+        """Test that the parsed frame has LG_INIT type."""
+        # GIVEN a raw LG_INIT frame string for Pin model (fixture)
+
+        # WHEN it is parsed into a Frame object (fixture)
+
+        # THEN frame_type is LG_INIT
+        assert parsed_pin_frame.frame_type == FrameType.LG_INIT
+
+    def test_parsed_frame_is_from_master(self, parsed_pin_frame):
+        """Test that the parsed frame is marked as coming from master."""
+        # GIVEN a parsed LG_INIT Pin frame (fixture)
+
+        # WHEN we check from_master
+        # THEN it is True
+        assert parsed_pin_frame.from_master is True
+
+    def test_parsed_command_id_is_minus_one(self, parsed_pin_frame):
+        """Test that a LG_INIT frame has command_id -1."""
+        # GIVEN a parsed LG_INIT Pin frame (fixture)
+
+        # WHEN we check command_id
+        # THEN it is -1
+        assert parsed_pin_frame.command_id == -1
+
+    def test_parsed_model_is_pin(self, parsed_pin_frame):
+        """Test that the model type is correctly parsed as Pin."""
+        # GIVEN a parsed LG_INIT Pin frame (fixture)
+
+        # WHEN we check the model
+        # THEN it is ModelType.PIN
+        assert parsed_pin_frame.model == ModelType.PIN
+
+    def test_parsed_model_attrs_values(self, parsed_pin_frame):
+        """Test that model attribute values are correctly split from semicolons."""
+        # GIVEN a parsed LG_INIT Pin frame with fields "digit;3;<compact_json>"
+
+        # WHEN we check model_attrs_values
+        # THEN the tuple contains each field as a separate string
+        assert parsed_pin_frame.model_attrs_values == ("digit", "3", _PIN_CFG)
+
+    def test_is_init_order_returns_true(self, parsed_pin_frame):
+        """Test that is_init_order() returns True for a LG_INIT frame."""
+        # GIVEN a parsed LG_INIT Pin frame (fixture)
+
+        # WHEN we call is_init_order()
+        # THEN it returns True
+        assert parsed_pin_frame.is_init_order() is True
+
+    def test_checksum_verification_passes(self, parsed_pin_frame):
+        """Test that the checksum of the parsed Pin frame is valid."""
+        # GIVEN a parsed LG_INIT Pin frame built with a correct checksum (fixture)
+
+        # WHEN we verify the checksum
+        # THEN verification passes
+        assert parsed_pin_frame.verify_checksum() is True
+
+
+# ---------------------------------------------------------------------------
+# Tests – Handler stage (Pin model)
+# ---------------------------------------------------------------------------
+
+
+class TestLgInitPinHandler:
+    """Tests for the handler processing a LG_INIT Pin frame and building the response."""
+
+    def test_handler_returns_response_string(self, handler, parsed_pin_frame):
+        """Test that the handler returns a non-empty response string."""
+        # GIVEN a FrameHandler and a parsed LG_INIT Pin frame (fixtures)
+
+        # WHEN the handler processes the frame
+        response = handler.handle_master_command(parsed_pin_frame)
+
+        # THEN a non-empty string is returned
+        assert response is not None
+        assert isinstance(response, str)
+        assert len(response) > 0
+
+    def test_response_contains_ack_frame_type(self, handler, parsed_pin_frame):
+        """Test that the response frame type is ACK."""
+        # GIVEN a handler processing a LG_INIT Pin frame
+        response = handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we inspect the response
+        # THEN it contains ACK
+        assert f"{STX} ACK" in response
+
+    def test_response_contains_device_uid(self, handler, parsed_pin_frame):
+        """Test that the response includes the device UID."""
+        # GIVEN a handler processing a LG_INIT Pin frame
+        response = handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we inspect the response
+        # THEN it contains the device UID
+        assert DEVICE_UID in response
+
+    def test_response_contains_command_id_minus_one(self, handler, parsed_pin_frame):
+        """Test that the response preserves the LG_INIT command_id (-1)."""
+        # GIVEN a handler processing a LG_INIT Pin frame
+        response = handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we inspect the response parts
+        parts = response.strip().split(" ")
+
+        # THEN command_id is -1
+        assert parts[3] == "-1"
+
+    def test_response_contains_ok_state(self, handler, parsed_pin_frame):
+        """Test that the response frame has OK command state."""
+        # GIVEN a handler processing a LG_INIT Pin frame
+        response = handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we inspect the response
+        # THEN it contains OK state
+        assert f" {CommandState.OK} " in response
+
+    def test_response_ends_with_newline(self, handler, parsed_pin_frame):
+        """Test that the response is newline-terminated for serial transmission."""
+        # GIVEN a handler processing a LG_INIT Pin frame
+        response = handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we check the ending
+        # THEN it ends with newline
+        assert response.endswith("\n")
+
+    def test_response_has_valid_checksum(self, handler, parsed_pin_frame):
+        """Test that the checksum in the response frame is valid."""
+        # GIVEN a handler processing a LG_INIT Pin frame
+        response = handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we extract response parts and verify the checksum
+        response_stripped = response.removesuffix("\n")
+        frame_part, cs_hex = response_stripped.rsplit(" ", 1)
+        expected_cs = Frame.build_checksum(frame_part.encode())
+
+        # THEN the checksum matches
+        assert int(cs_hex, 16) == expected_cs
+
+    def test_pin_added_to_init_pins_store(self, handler, parsed_pin_frame):
+        """Test that the Pin object is stored in init_pins_store after handling."""
+        # GIVEN a handler and a LG_INIT Pin frame
+
+        # WHEN the handler processes the frame
+        handler.handle_master_command(parsed_pin_frame)
+
+        # THEN the pin is retrievable from the pins store
+        pin = init_pins_store.get_item(3)
+        assert isinstance(pin, Pin)
+
+    def test_stored_pin_has_correct_channel_choiced(self, handler, parsed_pin_frame):
+        """Test that the stored Pin has the expected channel_choiced."""
+        # GIVEN a handler processing a LG_INIT Pin frame with channel_choiced='digit'
+        handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we retrieve the pin
+        pin = init_pins_store.get_item(3)
+
+        # THEN channel_choiced is 'digit'
+        assert pin.channel_choiced == "digit"
+
+    def test_stored_pin_has_correct_pin_number(self, handler, parsed_pin_frame):
+        """Test that the stored Pin has the expected pin_number."""
+        # GIVEN a handler processing a LG_INIT Pin frame with pin_number=3
+        handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we retrieve the pin
+        pin = init_pins_store.get_item(3)
+
+        # THEN pin_number is 3
+        assert pin.pin_number == 3
+
+    def test_stored_pin_is_initialized(self, handler, parsed_pin_frame):
+        """Test that the stored Pin has init_done set to True."""
+        # GIVEN a handler processing a LG_INIT Pin frame
+        handler.handle_master_command(parsed_pin_frame)
+
+        # WHEN we retrieve the pin
+        pin = init_pins_store.get_item(3)
+
+        # THEN init_done is True (machine pin was configured)
+        assert pin.init_done is True
+
+
+# ---------------------------------------------------------------------------
+# Tests – Handler error cases (Pin model)
+# ---------------------------------------------------------------------------
+
+
+class TestLgInitPinHandlerErrors:
+    """Tests for handler error cases specific to the Pin model during LG_INIT processing."""
+
+    def test_pin_not_stored_when_checksum_fails(self, handler):
+        """Test that a failed checksum prevents Pin from being stored."""
+        # GIVEN a LG_INIT Pin frame with a deliberately wrong checksum
+        frame_without_cs = f"{STX} LG_INIT {DEVICE_UID} -1 Pin {PIN_FIELDS} {ETX}"
+        bad_frame_str = f"{frame_without_cs} FF\n"
+        frame = FrameParser.parse_from_master(bad_frame_str)
+
+        # WHEN the handler rejects the frame
+        with pytest.raises(ValueError):
+            handler.handle_master_command(frame)
+
+        # THEN the pin is NOT in the pins store
+        with pytest.raises(KeyError):
+            init_pins_store.get_item(3)
+
+    def test_wrong_device_uid_raises_exception_for_pin_frame(self, handler):
+        """Test that a LG_INIT Pin frame with a non-matching device UID raises an exception."""
+        # GIVEN a LG_INIT Pin frame targeting a different device
+        raw_frame = build_lg_init_frame_str("wrong_device_uid", PIN_MODEL_NAME, PIN_FIELDS)
+        frame = FrameParser.parse_from_master(raw_frame)
+
+        # WHEN / THEN the handler raises an exception
+        with pytest.raises(Exception, match="does not match"):
+            handler.handle_master_command(frame)
+
+
+# ---------------------------------------------------------------------------
+# Tests – Full pipeline (Pin model, end-to-end with event system and queues)
+# ---------------------------------------------------------------------------
+
+
+class TestLgInitPinFullPipeline:
+    """End-to-end integration tests for Pin: raw bytes in -> event pipeline -> response in outbox."""
+
+    @pytest.mark.asyncio
+    async def test_pin_raw_bytes_to_inbox(self, pin_raw_bytes):
+        """Test that on_order_received decodes raw Pin bytes and queues them in inbox."""
+        # GIVEN raw LG_INIT Pin bytes as received from stdin
+
+        # WHEN on_order_received is called
+        await on_order_received(pin_raw_bytes)
+
+        # THEN the decoded string is available in the inbox queue
+        assert not inbox.empty()
+        queued_value = inbox.get_nowait()
+        assert queued_value == pin_raw_bytes.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_pin_process_produces_response(self, parsed_pin_frame):
+        """Test that on_order_process puts a response in the outbox queue for Pin."""
+        # GIVEN a parsed LG_INIT Pin Frame object (fixture)
+
+        # WHEN on_order_process is called
+        await on_order_process(parsed_pin_frame)
+
+        # THEN a response is ready in the outbox queue
+        assert not outbox.empty()
+
+    @pytest.mark.asyncio
+    async def test_full_pin_pipeline_from_raw_bytes(self, pin_raw_bytes):
+        """Test the complete Pin flow: raw bytes -> decode -> parse -> handle -> response queued."""
+        # GIVEN raw LG_INIT Pin bytes
+
+        # WHEN we simulate the full pipeline step by step
+        # Step 1: Receive raw bytes -> decode and queue
+        await on_order_received(pin_raw_bytes)
+
+        # Step 2: Consume from inbox, parse, and process
+        pin_str = inbox.get_nowait()
+        frame = FrameParser.parse_from_master(pin_str)
+        await on_order_process(frame)
+
+        # THEN a valid response has been queued in the outbox
+        assert not outbox.empty()
+        response = outbox.get_nowait()
+        assert isinstance(response, str)
+        assert response.endswith("\n")
+
+    @pytest.mark.asyncio
+    async def test_full_pin_pipeline_response_content(self, pin_raw_bytes):
+        """Test that the full Pin pipeline produces a correctly formatted ACK response."""
+        # GIVEN raw LG_INIT Pin bytes going through the complete pipeline
+
+        # WHEN processed end-to-end
+        await on_order_received(pin_raw_bytes)
+        pin_str = inbox.get_nowait()
+        frame = FrameParser.parse_from_master(pin_str)
+        await on_order_process(frame)
+        response = outbox.get_nowait()
+
+        # THEN the response contains all expected ACK response components
+        assert f"{STX} ACK" in response
+        assert DEVICE_UID in response
+        assert CommandState.OK in response
+
+    @pytest.mark.asyncio
+    async def test_full_pin_pipeline_response_checksum_valid(self, pin_raw_bytes):
+        """Test that the response generated by the full Pin pipeline has a valid checksum."""
+        # GIVEN raw LG_INIT Pin bytes going through the complete pipeline
+
+        # WHEN processed end-to-end
+        await on_order_received(pin_raw_bytes)
+        pin_str = inbox.get_nowait()
+        frame = FrameParser.parse_from_master(pin_str)
+        await on_order_process(frame)
+        response = outbox.get_nowait()
+
+        # THEN the checksum in the response is valid
+        response_stripped = response.removesuffix("\n")
+        frame_part, cs_hex = response_stripped.rsplit(" ", 1)
+        expected_cs = Frame.build_checksum(frame_part.encode())
+        assert int(cs_hex, 16) == expected_cs
+
+    @pytest.mark.asyncio
+    async def test_full_pin_pipeline_via_event_emitter(self, pin_raw_bytes):
+        """Test the complete Pin flow driven entirely by event emissions."""
+        # GIVEN raw LG_INIT Pin bytes and a fully wired event emitter (autouse fixture)
+
+        # WHEN we emit 'order:received' (the entry point of the pipeline)
+        await event_emitter.emit("order:received", pin_raw_bytes)
+
+        # Step 2: manually drive inbox -> parse -> emit 'order:process'
+        pin_str = inbox.get_nowait()
+        frame = FrameParser.parse_from_master(pin_str)
+        await event_emitter.emit("order:process", frame)
+
+        # THEN the outbox contains a valid ACK response
+        assert not outbox.empty()
+        response = outbox.get_nowait()
+        assert f"{STX} ACK" in response
+        assert DEVICE_UID in response
+
+    @pytest.mark.asyncio
+    async def test_pin_stored_after_full_pipeline(self, pin_raw_bytes):
+        """Test that the Pin is stored in init_pins_store after the full pipeline completes."""
+        # GIVEN raw LG_INIT Pin bytes
+
+        # WHEN the full pipeline processes them
+        await on_order_received(pin_raw_bytes)
+        pin_str = inbox.get_nowait()
+        frame = FrameParser.parse_from_master(pin_str)
+        await on_order_process(frame)
+
+        # THEN the pin is stored in init_pins_store
+        pin = init_pins_store.get_item(3)
+        assert isinstance(pin, Pin)
+        assert pin.pin_number == 3
+        assert pin.channel_choiced == "digit"
