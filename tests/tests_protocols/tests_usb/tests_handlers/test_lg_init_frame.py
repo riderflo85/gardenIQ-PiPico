@@ -179,17 +179,17 @@ def drain_queues():
 def clean_commands_store():
 def clean_commands_store():
     """Clear the command store before and after each test to ensure isolation."""
-    commands_store._orders.clear()
+    commands_store._items.clear()
     yield
-    commands_store._orders.clear()
+    commands_store._items.clear()
 
 
 @pytest.fixture(autouse=True)
 def clean_pins_store():
     """Clear the pins store before and after each test to ensure isolation."""
-    init_pins_store._pins.clear()
+    init_pins_store._items.clear()
     yield
-    init_pins_store._pins.clear()
+    init_pins_store._items.clear()
 
 
 # -- Order fixtures --
@@ -411,7 +411,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # THEN the order is retrievable from the command store
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
         assert isinstance(order, Order)
 
     def test_stored_order_has_correct_pk(self, handler, parsed_order_frame):
@@ -420,7 +420,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN pk is 1
         assert order.pk == 1
@@ -431,7 +431,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN slug is 'get_temp'
         assert order.slug == "get_temp"
@@ -442,7 +442,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN action_type is 'get'
         assert order.action_type == "get"
@@ -453,7 +453,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN sensor is 5
         assert order.sensor == 5
@@ -464,7 +464,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN controller is -1
         assert order.controller == -1
@@ -475,7 +475,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN is_toggle_ctrl_value is False
         assert order.is_toggle_ctrl_value is False
@@ -486,7 +486,7 @@ class TestLgInitOrderHandler:
         handler.handle_master_command(parsed_order_frame)
 
         # WHEN we retrieve the order
-        order = commands_store.get_order(1)
+        order = commands_store.get_item(1)
 
         # THEN ctrl_value is ''
         assert order.ctrl_value == ""
@@ -563,7 +563,7 @@ class TestLgInitHandlerErrors:
 
         # THEN the order is NOT in the command store
         with pytest.raises(KeyError):
-            commands_store.get_order(1)
+            commands_store.get_item(1)
 
 
 # ---------------------------------------------------------------------------
@@ -840,7 +840,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # THEN the pin is retrievable from the pins store
-        pin = init_pins_store.get_pin(3)
+        pin = init_pins_store.get_item(3)
         assert isinstance(pin, Pin)
 
     def test_stored_pin_has_correct_channel_choiced(self, handler, parsed_pin_frame):
@@ -849,7 +849,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # WHEN we retrieve the pin
-        pin = init_pins_store.get_pin(3)
+        pin = init_pins_store.get_item(3)
 
         # THEN channel_choiced is 'digit'
         assert pin.channel_choiced == "digit"
@@ -860,7 +860,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # WHEN we retrieve the pin
-        pin = init_pins_store.get_pin(3)
+        pin = init_pins_store.get_item(3)
 
         # THEN pin_number is 3
         assert pin.pin_number == 3
@@ -871,7 +871,7 @@ class TestLgInitPinHandler:
         handler.handle_master_command(parsed_pin_frame)
 
         # WHEN we retrieve the pin
-        pin = init_pins_store.get_pin(3)
+        pin = init_pins_store.get_item(3)
 
         # THEN init_done is True (machine pin was configured)
         assert pin.init_done is True
@@ -898,7 +898,7 @@ class TestLgInitPinHandlerErrors:
 
         # THEN the pin is NOT in the pins store
         with pytest.raises(KeyError):
-            init_pins_store.get_pin(3)
+            init_pins_store.get_item(3)
 
     def test_wrong_device_uid_raises_exception_for_pin_frame(self, handler):
         """Test that a LG_INIT Pin frame with a non-matching device UID raises an exception."""
@@ -1029,7 +1029,7 @@ class TestLgInitPinFullPipeline:
         await on_order_process(frame)
 
         # THEN the pin is stored in init_pins_store
-        pin = init_pins_store.get_pin(3)
+        pin = init_pins_store.get_item(3)
         assert isinstance(pin, Pin)
         assert pin.pin_number == 3
         assert pin.channel_choiced == "digit"
