@@ -107,18 +107,10 @@ class TestOrder:
         assert Order.ACTION_TYPES == ("get", "set")
         assert Order.EMPTY_CTRL_VALUE == ("", "None", "none", "NULL", "null")
 
-    def test_execute_method_exists(self, order):
-        """Test that Order instances expose an execute method."""
-        # GIVEN an Order instance (fixture)
-
-        # WHEN we check for the execute method
-        # THEN it is callable
-        assert callable(order.execute)
-
-    # -- _is_trigger_sensor ------------------------------------------------
+    # -- is_trigger_sensor -------------------------------------------------
 
     def test_is_trigger_sensor_true_when_get_and_sensor_positive(self):
-        """Test _is_trigger_sensor returns True for a 'get' order with a valid sensor."""
+        """Test is_trigger_sensor returns True for a 'get' order with a valid sensor."""
         # GIVEN an order with action_type 'get' and a positive sensor pin
         order = Order(
             pk=1, slug="temp", action_type="get", sensor=4, controller=-1, is_toggle_ctrl_value=False, ctrl_value=""
@@ -126,10 +118,10 @@ class TestOrder:
 
         # WHEN we check if it triggers a sensor
         # THEN it returns True
-        assert order._is_trigger_sensor() is True
+        assert order.is_trigger_sensor() is True
 
     def test_is_trigger_sensor_true_when_sensor_is_zero(self):
-        """Test _is_trigger_sensor returns True when sensor pin is 0 (valid pin)."""
+        """Test is_trigger_sensor returns True when sensor pin is 0 (valid pin)."""
         # GIVEN an order with action_type 'get' and sensor pin 0
         order = Order(
             pk=1, slug="temp", action_type="get", sensor=0, controller=-1, is_toggle_ctrl_value=False, ctrl_value=""
@@ -137,10 +129,10 @@ class TestOrder:
 
         # WHEN we check if it triggers a sensor
         # THEN it returns True (pin 0 is valid)
-        assert order._is_trigger_sensor() is True
+        assert order.is_trigger_sensor() is True
 
     def test_is_trigger_sensor_false_when_set(self):
-        """Test _is_trigger_sensor returns False for a 'set' order."""
+        """Test is_trigger_sensor returns False for a 'set' order."""
         # GIVEN an order with action_type 'set'
         order = Order(
             pk=1, slug="ctrl", action_type="set", sensor=4, controller=5, is_toggle_ctrl_value=False, ctrl_value="on"
@@ -148,10 +140,10 @@ class TestOrder:
 
         # WHEN we check if it triggers a sensor
         # THEN it returns False
-        assert order._is_trigger_sensor() is False
+        assert order.is_trigger_sensor() is False
 
     def test_is_trigger_sensor_false_when_no_sensor(self):
-        """Test _is_trigger_sensor returns False when sensor is -1."""
+        """Test is_trigger_sensor returns False when sensor is -1."""
         # GIVEN an order with action_type 'get' but no sensor (pin -1)
         order = Order(
             pk=1, slug="temp", action_type="get", sensor=-1, controller=-1, is_toggle_ctrl_value=False, ctrl_value=""
@@ -159,12 +151,12 @@ class TestOrder:
 
         # WHEN we check if it triggers a sensor
         # THEN it returns False
-        assert order._is_trigger_sensor() is False
+        assert order.is_trigger_sensor() is False
 
-    # -- _is_trigger_controller --------------------------------------------
+    # -- is_trigger_controller ---------------------------------------------
 
     def test_is_trigger_controller_true_when_set_and_valid(self):
-        """Test _is_trigger_controller returns True for a 'set' order with valid controller and ctrl_value."""
+        """Test is_trigger_controller returns True for a 'set' order with valid controller and ctrl_value."""
         # GIVEN an order with action_type 'set', a valid controller and a non-empty ctrl_value
         order = Order(
             pk=1, slug="ctrl", action_type="set", sensor=-1, controller=5, is_toggle_ctrl_value=False, ctrl_value="on"
@@ -172,10 +164,10 @@ class TestOrder:
 
         # WHEN we check if it triggers a controller
         # THEN it returns True
-        assert order._is_trigger_controller() is True
+        assert order.is_trigger_controller() is True
 
     def test_is_trigger_controller_false_when_get(self):
-        """Test _is_trigger_controller returns False for a 'get' order."""
+        """Test is_trigger_controller returns False for a 'get' order."""
         # GIVEN an order with action_type 'get'
         order = Order(
             pk=1, slug="temp", action_type="get", sensor=4, controller=5, is_toggle_ctrl_value=False, ctrl_value="on"
@@ -183,10 +175,10 @@ class TestOrder:
 
         # WHEN we check if it triggers a controller
         # THEN it returns False
-        assert order._is_trigger_controller() is False
+        assert order.is_trigger_controller() is False
 
     def test_is_trigger_controller_false_when_no_controller(self):
-        """Test _is_trigger_controller returns False when controller is -1."""
+        """Test is_trigger_controller returns False when controller is -1."""
         # GIVEN an order with action_type 'set' but no controller
         order = Order(
             pk=1, slug="ctrl", action_type="set", sensor=-1, controller=-1, is_toggle_ctrl_value=False, ctrl_value="on"
@@ -194,11 +186,11 @@ class TestOrder:
 
         # WHEN we check if it triggers a controller
         # THEN it returns False
-        assert order._is_trigger_controller() is False
+        assert order.is_trigger_controller() is False
 
     @pytest.mark.parametrize("empty_value", ["", "None", "none", "NULL", "null"])
     def test_is_trigger_controller_false_when_ctrl_value_empty(self, empty_value):
-        """Test _is_trigger_controller returns False when ctrl_value is an empty-like value."""
+        """Test is_trigger_controller returns False when ctrl_value is an empty-like value."""
         # GIVEN an order with action_type 'set' but an empty ctrl_value
         order = Order(
             pk=1,
@@ -212,4 +204,85 @@ class TestOrder:
 
         # WHEN we check if it triggers a controller
         # THEN it returns False
-        assert order._is_trigger_controller() is False
+        assert order.is_trigger_controller() is False
+
+    # -- is_trigger_get_controller_value -----------------------------------
+
+    def test_is_trigger_get_controller_value_true_when_get_and_controller_positive(self):
+        """Test is_trigger_get_controller_value returns True for a 'get' order with a valid controller."""
+        # GIVEN an order with action_type 'get' and a positive controller pin
+        order = Order(
+            pk=1,
+            slug="relay-state",
+            action_type="get",
+            sensor=-1,
+            controller=5,
+            is_toggle_ctrl_value=False,
+            ctrl_value="",
+        )
+
+        # WHEN we check if it triggers getting controller value
+        # THEN it returns True
+        assert order.is_trigger_get_controller_value() is True
+
+    def test_is_trigger_get_controller_value_true_when_controller_is_zero(self):
+        """Test is_trigger_get_controller_value returns True when controller pin is 0 (valid pin)."""
+        # GIVEN an order with action_type 'get' and controller pin 0
+        order = Order(
+            pk=1,
+            slug="relay-state",
+            action_type="get",
+            sensor=-1,
+            controller=0,
+            is_toggle_ctrl_value=False,
+            ctrl_value="",
+        )
+
+        # WHEN we check if it triggers getting controller value
+        # THEN it returns True (pin 0 is valid)
+        assert order.is_trigger_get_controller_value() is True
+
+    def test_is_trigger_get_controller_value_false_when_set(self):
+        """Test is_trigger_get_controller_value returns False for a 'set' order."""
+        # GIVEN an order with action_type 'set'
+        order = Order(
+            pk=1, slug="ctrl", action_type="set", sensor=-1, controller=5, is_toggle_ctrl_value=False, ctrl_value="on"
+        )
+
+        # WHEN we check if it triggers getting controller value
+        # THEN it returns False
+        assert order.is_trigger_get_controller_value() is False
+
+    def test_is_trigger_get_controller_value_false_when_no_controller(self):
+        """Test is_trigger_get_controller_value returns False when controller is -1."""
+        # GIVEN an order with action_type 'get' but no controller (pin -1)
+        order = Order(
+            pk=1,
+            slug="relay-state",
+            action_type="get",
+            sensor=-1,
+            controller=-1,
+            is_toggle_ctrl_value=False,
+            ctrl_value="",
+        )
+
+        # WHEN we check if it triggers getting controller value
+        # THEN it returns False
+        assert order.is_trigger_get_controller_value() is False
+
+    def test_is_trigger_get_controller_value_ignores_ctrl_value(self):
+        """Test is_trigger_get_controller_value returns True even when ctrl_value is set (it's ignored for 'get')."""
+        # GIVEN an order with action_type 'get', a controller, and a ctrl_value
+        order = Order(
+            pk=1,
+            slug="relay-state",
+            action_type="get",
+            sensor=-1,
+            controller=5,
+            is_toggle_ctrl_value=False,
+            ctrl_value="on",
+        )
+
+        # WHEN we check if it triggers getting controller value
+        # THEN it returns True (ctrl_value is irrelevant for 'get' actions)
+        assert order.is_trigger_get_controller_value() is True
