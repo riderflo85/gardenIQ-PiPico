@@ -26,8 +26,9 @@ class Order:
 
     Methods:
         __init__: Initializes an Order instance with the provided attributes.
-        _is_trigger_sensor: Determines if the order is a sensor data retrieval action.
-        _is_trigger_controller: Determines if the order is a controller action.
+        is_trigger_sensor: Determines if the order is a sensor data retrieval action.
+        is_trigger_controller: Determines if the order is a controller action.
+        is_trigger_get_controller_value: Determines if the order is a get controller value action.
         execute: Executes the order (e.g., get temperature from a sensor).
 
     Raises:
@@ -71,11 +72,11 @@ class Order:
         self.is_toggle_ctrl_value = is_toggle_ctrl_value
         self.ctrl_value = ctrl_value
 
-    def _is_trigger_sensor(self) -> bool:
+    def is_trigger_sensor(self) -> bool:
         """Determine if the order is a sensor data retrieval action."""
         return self.action_type == self.ACT_TYPE_GET and self.sensor >= 0
 
-    def _is_trigger_controller(self) -> bool:
+    def is_trigger_controller(self) -> bool:
         """Determine if the order is a controller action."""
         return (
             self.action_type == self.ACT_TYPE_SET
@@ -83,5 +84,12 @@ class Order:
             and self.ctrl_value not in self.EMPTY_CTRL_VALUE
         )
 
-    def execute(self):
-        """Execute the order (e.g : get temp to sensor)"""
+    def is_trigger_get_controller_value(self) -> bool:
+        """
+        Determine if the order is a get controller value action (e.g., get the current state of a relay).
+        The machine.Pin class expose a value() method that can take an optional argument to set the value of
+            the pin or get the current value if no argument is provided.
+        This type of order can be used to get the current state of a controller
+            (e.g., if a relay is currently On or Off) without changing its state.
+        """
+        return self.action_type == self.ACT_TYPE_GET and self.controller >= 0
