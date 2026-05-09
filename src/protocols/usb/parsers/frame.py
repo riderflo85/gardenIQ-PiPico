@@ -1,4 +1,4 @@
-from src.core.models import ModelType
+from src.models import ModelType
 from src.protocols.errors import FrameParsingError
 from src.protocols.settings import ETX
 from src.protocols.settings import STX

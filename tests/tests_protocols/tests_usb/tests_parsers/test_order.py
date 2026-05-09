@@ -1,6 +1,6 @@
 import pytest
 
-from src.core.models import Order
+from src.models import Order
 from src.protocols.usb.parsers.order import parse_str_order_to_model
 
 # ---------------------------------------------------------------------------
@@ -130,12 +130,12 @@ class TestParseStrOrderToModel:
         assert result.action_type == "set"
 
     def test_fields_count_must_match_cfg(self):
-        """Test that providing fewer values than fields_cfg raises an IndexError."""
+        """Test that providing fewer values than fields_cfg raises an ValueError."""
         # GIVEN a tuple with fewer elements than Order.fields_cfg expects
         incomplete_fields = ("1", "slug")
 
-        # WHEN / THEN an IndexError is raised
-        with pytest.raises(IndexError):
+        # WHEN / THEN a ValueError is raised
+        with pytest.raises(ValueError):
             parse_str_order_to_model(incomplete_fields)
 
     def test_non_numeric_pk_raises_value_error(self):

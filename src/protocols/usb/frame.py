@@ -1,5 +1,5 @@
 from src.core.enum import PseudoEnum
-from src.core.models import ModelType
+from src.models.settings import ModelType
 from src.protocols.errors import CommandError
 from src.protocols.settings import pattern_strict_version
 

@@ -1,23 +1,7 @@
 from typing import Callable
 from typing import Literal
 
-from src.core.enum import PseudoEnum
-
-
-def str_to_bool(value: str) -> bool:
-    """Convert a string to a boolean value."""
-    if value in ("True", "true"):
-        return True
-    elif value in ("False", "false"):
-        return False
-    else:
-        raise ValueError(f"Cannot convert '{value}' to bool. Expected 'True' or 'False'.")
-
-
-class ModelType(PseudoEnum):
-    """Model types for frame commands."""
-
-    ORDER = "Order"
+from src.core.utils import str_to_bool
 
 
 class Order:
