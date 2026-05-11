@@ -3,8 +3,6 @@
 # It is not a unit test, but an integration test.
 import json
 
-import json
-
 import pytest
 
 from src.core import DEVICE_UID
@@ -177,7 +175,6 @@ def drain_queues():
 
 @pytest.fixture(autouse=True)
 def clean_commands_store():
-def clean_commands_store():
     """Clear the command store before and after each test to ensure isolation."""
     commands_store._items.clear()
     yield
@@ -211,27 +208,6 @@ def order_raw_bytes(order_raw_frame):
 def parsed_order_frame(order_raw_frame):
     """Fixture providing a Frame object parsed from the raw Order LG_INIT frame."""
     return FrameParser.parse_from_master(order_raw_frame)
-
-
-# -- Pin fixtures --
-
-
-@pytest.fixture
-def pin_raw_frame():
-    """Fixture providing a valid raw LG_INIT frame string for the Pin model."""
-    return build_lg_init_frame_str(DEVICE_UID, PIN_MODEL_NAME, PIN_FIELDS)
-
-
-@pytest.fixture
-def pin_raw_bytes(pin_raw_frame):
-    """Fixture providing the Pin LG_INIT frame as raw bytes (simulating stdin read)."""
-    return pin_raw_frame.encode("utf-8")
-
-
-@pytest.fixture
-def parsed_pin_frame(pin_raw_frame):
-    """Fixture providing a Frame object parsed from the raw Pin LG_INIT frame."""
-    return FrameParser.parse_from_master(pin_raw_frame)
 
 
 # -- Pin fixtures --
@@ -401,8 +377,6 @@ class TestLgInitOrderHandler:
         # THEN the checksum matches
         assert int(cs_hex, 16) == expected_cs
 
-    def test_order_added_to_commands_store(self, handler, parsed_order_frame):
-        """Test that the Order object is stored in commands_store after handling."""
     def test_order_added_to_commands_store(self, handler, parsed_order_frame):
         """Test that the Order object is stored in commands_store after handling."""
         # GIVEN a handler and a LG_INIT Order frame
