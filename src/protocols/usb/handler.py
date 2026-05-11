@@ -14,7 +14,6 @@ from .frame import FrameType
 from .parsers import FrameParser
 from .parsers import parse_str_order_to_model
 from .parsers import parse_str_pin_to_model
-from .parsers import parse_str_pin_to_model
 
 
 class FrameHandler:
