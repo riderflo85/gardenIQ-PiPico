@@ -1,7 +1,14 @@
 import json
 from typing import Callable
+from typing import TypeVar
+
+from machine import ADC
+from machine import PWM
+from machine import Pin as MachinePin
 
 from src.datasheet import MP_MACHINE
+
+T = TypeVar("T", MachinePin, ADC, PWM)
 
 
 class Pin:
@@ -46,7 +53,7 @@ class Pin:
         self.init_done = True
         self.initial_configuration = None
 
-    def _setup_machine_pin(self) -> object:
+    def _setup_machine_pin(self) -> T | None:
         """
         Instantiate and configure a MicroPython machine object from the pre-parsed configuration.
 

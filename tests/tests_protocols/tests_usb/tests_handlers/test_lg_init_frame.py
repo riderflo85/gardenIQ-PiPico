@@ -96,6 +96,48 @@ PIN_MODEL_NAME = "Pin"
 # digit ; pin_number=3 ; compact JSON config — three fields matching Pin.fields_cfg order
 PIN_FIELDS = f"digit;3;{_PIN_CFG}"
 
+# initial_configuration JSON for a digital pin GP3 (IN mode), compact (no spaces).
+_PIN_CFG = json.dumps(
+    {
+        "channel_class": "Pin",
+        "arguments": [
+            {
+                "name": "id",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": False,
+                    "mp_module_name": "",
+                    "mp_class_name": "",
+                    "garden_model": "Pin",
+                    "attribute_name": "pin_number",
+                    "check_with_json_value": True,
+                    "use_json_value": True,
+                },
+                "value": 3,
+            },
+            {
+                "name": "mode",
+                "skip_this_arg": False,
+                "value_type": {
+                    "is_micropython_class": True,
+                    "mp_module_name": "machine",
+                    "mp_class_name": "Pin",
+                    "garden_model": "",
+                    "attribute_name": "IN",
+                    "check_with_json_value": False,
+                    "use_json_value": False,
+                },
+                "value": "",
+            },
+        ],
+    },
+    separators=(",", ":"),
+)
+
+PIN_MODEL_NAME = "Pin"
+# digit ; pin_number=3 ; compact JSON config — three fields matching Pin.fields_cfg order
+PIN_FIELDS = f"digit;3;{_PIN_CFG}"
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

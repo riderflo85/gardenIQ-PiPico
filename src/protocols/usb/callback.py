@@ -1,6 +1,7 @@
 from src.core import DEVICE_UID
 from src.core import FrozenDataclass
 from src.core import event_emitter
+from src.core.utils import format_error
 from src.protocols.errors import CommandError
 from src.protocols.settings import ETX
 from src.protocols.settings import STX
@@ -43,9 +44,7 @@ async def on_order_process(order: Frame) -> None:
 
 
 async def on_error_occurred(error_message: str, error_type: str, trigger_order: str | Frame) -> None:
-    # Replace the spaces string in the error message with underscores `_`,
-    # because the frame parsing function splits the frame string using space to seperate blocks.
-    formated_err_msg = f"{error_type}::{error_message.replace(" ", "_")}"
+    formated_err_msg = format_error(error_type, error_message)
 
     if isinstance(trigger_order, Frame):
         error_frame_obj = Frame(

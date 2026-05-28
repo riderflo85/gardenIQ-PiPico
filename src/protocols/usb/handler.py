@@ -1,7 +1,10 @@
 from src.__version__ import __version__
 from src.__version__ import micropython_version
+from src.channelsrunner import channel_handler
 from src.core import DEVICE_UID
+from src.core.utils import format_error
 from src.models import ModelType
+from src.protocols.errors import CommandError
 from src.stores import commands_store
 from src.stores import init_pins_store
 
@@ -36,7 +39,7 @@ class FrameHandler:
         elif frame.is_init_order():
             return self._handle_init_order(frame)
         elif frame.is_command_order():
-            return self._handle_command_order()
+            return self._handle_command_order(frame.command_id)
         else:
             return
 
@@ -55,15 +58,37 @@ class FrameHandler:
         frame_response = FrameParser.parse_from_frame_klass(frame_obj)
         return frame_response
 
-    def _handle_command_order(self) -> None:
+    def _handle_command_order(self, cmd_id: int) -> str:
         """Fetch the command in command store.
         Execute command.
         Construct the command order response.
-        Send the response to master.
         """
-        # TODO: Finish this method when the command store are available.
+        try:
+            order = commands_store.get_item(cmd_id)
+            ctrl_or_sensor_data = channel_handler.handle_order(order)
+            ctrl_or_sensor_data = str(ctrl_or_sensor_data) if ctrl_or_sensor_data is not None else None
+            frame_obj = Frame(
+                frame_type=FrameType.ACK,
+                device_uid=DEVICE_UID,
+                command_id=cmd_id,
+                command_state=CommandState.OK,
+                ok_data=ctrl_or_sensor_data,
+            )
+        except (KeyError, ValueError) as e:
+            cmd_err = CommandError.UNKNOW_CMD if isinstance(e, KeyError) else CommandError.UNKNOW_ERR
+            error_msg = format_error(cmd_err, str(e))
+            frame_obj = Frame(
+                frame_type=FrameType.ACK,
+                device_uid=DEVICE_UID,
+                command_id=cmd_id,
+                command_state=CommandState.ERROR,
+                err_msg=error_msg,
+            )
+        frame_response = FrameParser.parse_from_frame_klass(frame_obj)
+        return frame_response
 
     def _handle_init_order(self, frame: Frame) -> str:
+        """Complete or update registry."""
         """Complete or update registry."""
         if frame.model == ModelType.ORDER:
             order_obj = parse_str_order_to_model(frame.model_attrs_values)
