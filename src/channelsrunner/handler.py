@@ -30,15 +30,15 @@ class ChannelHandler:
         if pin_cfg.executor is None:
             raise ValueError(f"Pin {pin_num} is not initialized. Cannot execute order.")
 
-        match pin_cfg.channel_choiced:
-            case "digit":
-                return self._handle_digit(pin_cfg, order)
-            case "pwm":
-                return self._handle_pwm(pin_cfg, order)
-            case "analog":
-                return self._handle_analog(pin_cfg)
-            case _:
-                raise InvalidChannelError(pin_cfg.channel_choiced)
+        channel = pin_cfg.channel_choiced
+        if channel == "digit":
+            return self._handle_digit(pin_cfg, order)
+        elif channel == "pwm":
+            return self._handle_pwm(pin_cfg, order)
+        elif channel == "analog":
+            return self._handle_analog(pin_cfg)
+        else:
+            raise InvalidChannelError(pin_cfg.channel_choiced)
 
     def _handle_digit(self, pin: Pin, order: Order) -> int | None:
         if order.action_type == Order.ACT_TYPE_GET:
