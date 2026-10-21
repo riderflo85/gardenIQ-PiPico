@@ -212,3 +212,13 @@ __marimo__/
 
 .python-version
 .github/prompts
+
+# Local backlog (see CLAUDE.md)
+docs/backlog.md
+
+# Claude Code local outputs (reviews)
+.claude/out/
+
+# Personal Claude Code files
+CLAUDE.local.md
+.claude/settings.local.json
