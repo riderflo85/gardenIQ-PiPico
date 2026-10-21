@@ -78,7 +78,7 @@ flake8 .
 Faire cette étape **en dernier** pour tester l'état final (après rebase).
 
 ```bash
-pytest -n auto
+pytest
 ```
 
 Suite complète en local. Pour un périmètre réduit : `pytest -- tests/<dossier>` ; l'écrire dans le bilan. Échec : donner le test et l'erreur, ne pas conclure sans les avoir lus (un test instable se relance, un échec reproductible est à traiter). Les tests tournent sous CPython avec les mocks MicroPython : un test vert ne prouve pas que le code fonctionne sur la carte, et le bilan ne le dit jamais.

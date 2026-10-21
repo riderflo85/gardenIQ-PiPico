@@ -57,7 +57,7 @@ Conventions (détail dans `tests.md`) :
 - coroutines : `@pytest.mark.asyncio`, `mocker.AsyncMock()` pour les coroutines simulées ;
 - `mocker.patch("src.<chemin>.<nom>")` en visant l'endroit où le nom est **utilisé** ; `monkeypatch` pour un attribut ou l'environnement ; pas d'`unittest.mock` direct ;
 - imports en une ligne par nom (`from x import A` / `from x import B`), comme dans tout le dépôt : isort et flake8 tranchent ;
-- pas d'ordre d'exécution implicite : les tests peuvent tourner en parallèle avec `pytest-xdist` ;
+- pas d'ordre d'exécution implicite : un test ne dépend ni d'un autre ni de l'ordre des fichiers ;
 - il n'y a ni timeout par test ni marker `slow` : un test lent est un problème à signaler, pas à masquer.
 
 Ne pas modifier `conftest.py` ni `tests/mocks/` sans le dire : l'impact dépasse le test en cours (ajouter une méthode à un mock pour un nouveau module matériel est normal, mais à mentionner). Les tests sont dispensés de typage (voir « Typage » dans `CLAUDE.md`).
@@ -68,7 +68,7 @@ Ne pas modifier `conftest.py` ni `tests/mocks/` sans le dire : l'impact dépasse
 pytest -- tests/<dossier>/<fichier>.py::<Classe>::<test>
 ```
 
-Dans `pipenv shell` ou avec `pipenv run`. Pour un dossier : `pytest -n auto -- tests/<dossier>`.
+Dans `pipenv shell` ou avec `pipenv run`. Pour un dossier : `pytest -- tests/<dossier>`.
 
 - **Nouvelle fonctionnalité** : les tests doivent passer.
 - **Reproduction d'un bug** : le test doit **échouer avant le correctif**, pour la bonne raison (l'assertion qui décrit le bug, pas une erreur d'import ou de fixture). Le montrer, puis laisser l'utilisateur valider la cause et le correctif : on ne corrige pas dans ce skill (règle de `CLAUDE.md` : cause racine proposée avant de modifier le code).

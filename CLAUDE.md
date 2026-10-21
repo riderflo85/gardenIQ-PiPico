@@ -14,7 +14,7 @@ Tout passe par l'environnement pipenv : soit dans `pipenv shell`, soit en préfi
 | Lint comme la CI (sans écrire) | `black --check .` `isort --check-only --diff .` `flake8 .` |
 | Tous les hooks pre-commit | `pre-commit run --all-files` |
 | Tests | `pytest` |
-| Tests plus rapides | `-x` (stoppe au premier échec), `-n auto` (pytest-xdist) |
+| Tests plus ciblés | `-x` (stoppe au premier échec). La suite entière dure quelques secondes ; `-n auto` (pytest-xdist) échoue : `conftest.py` remplace le module `sys`, dont xdist lit `sys.argv` (voir `docs/backlog.md`). |
 | Un test précis | `pytest -- tests/<dossier>/<fichier>.py::<Classe>::<test>` |
 | Couverture (comme la CI) | `pytest --cov=. --cov-report=term-missing` |
 | Mettre à jour les dépendances | `pipenv run update_dep` (régénère `Pipfile.lock` et `requirements_dev.txt`, utilisé par la CI) |
@@ -70,7 +70,7 @@ Typer au maximum, pour la lisibilité et l'aide de l'éditeur :
 
 ## Tests
 
-pytest, pytest-asyncio (`asyncio_mode = "auto"`), pytest-mock, pytest-xdist. Pas de `pytest.ini`, pas de timeout, pas de marker `slow`.
+pytest, pytest-asyncio (`asyncio_mode = "auto"`), pytest-mock. `pytest-xdist` est installé mais inutilisable en l'état (voir « Commandes »). Pas de `pytest.ini`, pas de timeout, pas de marker `slow`.
 
 - Les tests reflètent `src/` : `tests/tests_<package>/test_<objet>.py` (`tests_core`, `tests_models`, `tests_channelsrunner`, `tests_protocols/tests_usb/...`), plus `tests/test_versions.py`. Un fichier de test porte le nom de l'objet testé.
 - Structure : une docstring d'une ligne, puis les commentaires `# GIVEN`, `# WHEN`, `# THEN` ; tests groupés en classes par objet (`TestQueueInit`).

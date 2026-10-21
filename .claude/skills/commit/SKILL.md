@@ -54,7 +54,7 @@ pre-commit run
 
 (sans `--all-files` : uniquement les fichiers indexés.) Si un contrôle échoue, corriger les fichiers concernés **avant** de commiter, sans changement hors du périmètre. Les hooks qui réécrivent des fichiers (black, isort, fin de fichier) les modifient : réindexer ensuite.
 
-Ne pas lancer toute la suite de tests à chaque commit. Si le changement touche du code testé, lancer au moins les tests concernés (`pytest -- tests/<dossier>/<fichier>.py`, ou `-n auto` pour un dossier) et le dire dans la proposition. Les tests ne s'exécutent que sur CPython avec les mocks MicroPython : ne pas écrire « testé sur la carte ».
+Ne pas lancer toute la suite de tests à chaque commit. Si le changement touche du code testé, lancer au moins les tests concernés (`pytest -- tests/<dossier>/<fichier>.py`, ou un dossier entier) et le dire dans la proposition. Les tests ne s'exécutent que sur CPython avec les mocks MicroPython : ne pas écrire « testé sur la carte ».
 
 ### 4. Rédiger le message
 
