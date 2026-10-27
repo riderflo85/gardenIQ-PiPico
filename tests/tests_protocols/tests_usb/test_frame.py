@@ -712,6 +712,30 @@ class TestBuildChecksum:
             checksum = Frame.build_checksum(data)
             assert 0 <= checksum <= 255
 
+    def test_build_checksum_depends_on_byte_order(self):
+        """Test that swapping two bytes changes the checksum (second Fletcher sum is used)."""
+        # GIVEN: Two byte strings with the same bytes in a different order
+        data = b"ab"
+        swapped = b"ba"
+
+        # WHEN: We calculate both checksums
+        checksum = Frame.build_checksum(data)
+        swapped_checksum = Frame.build_checksum(swapped)
+
+        # THEN: The checksums differ
+        assert checksum != swapped_checksum
+
+    def test_build_checksum_known_value(self):
+        """Test the checksum of a reference frame; the backend must compute the same value."""
+        # GIVEN: A reference frame, without its trailing checksum
+        data = b"< CMD UID 12 get_temp >"
+
+        # WHEN: We calculate the checksum
+        checksum = Frame.build_checksum(data)
+
+        # THEN: It matches the Fletcher8 value (sum1 and sum2 mod 255, then (sum2 << 4) ^ sum1)
+        assert checksum == 126
+
 
 class TestVerifyChecksum:
     """Tests for the verify_checksum method."""
